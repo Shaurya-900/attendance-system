@@ -30,9 +30,19 @@ Proxy-proof attendance for E-Cell meetings with a 3-strike rule. Mobile-first we
 
 Closing a meeting marks every active member who didn't check in as absent (or excused if their excuse was approved).
 
+## Groups (teams, leads, event teams)
+
+Besides full-body meetings, admins can create **groups** under **Admin → Groups**: a vertical team, a leads group, or a temporary event team with an end date.
+
+- A meeting can be for **Full body** or for one group. Only that group's members are expected, can check in, or get marked absent.
+- **Each group keeps its own 3-strike count**, separate from full body. A member sees one card per count on *My attendance*.
+- Admins can make any group member a **lead**. Leads can create, run and close their group's meetings, add or remove members, review excuses for their meetings and export them. They can't touch full-body meetings or other groups.
+- Event teams stop appearing in the "new meeting" list after their end date, and admins can archive any group. History and strikes are kept.
+- People must have signed in to the app once before they can be added to a group.
+
 ## Setup
 
-1. Create a [Supabase](https://supabase.com) project. Run `supabase/migrations/0001_init.sql` in the SQL editor.
+1. Create a [Supabase](https://supabase.com) project. In the SQL editor, run each file in `supabase/migrations/` in order (`0001`, `0002`, `0003`, …).
 2. In Supabase → Authentication → Providers, enable **Google** (create OAuth credentials in Google Cloud; add `https://<your-project>.supabase.co/auth/v1/callback` as a redirect URI). Add your site URL and `https://<your-site>/api/auth/callback` to Supabase's allowed redirect URLs.
 3. Add yourself as the first admin:
    ```sql

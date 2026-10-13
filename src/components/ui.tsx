@@ -32,3 +32,11 @@ export function fmt(iso: string | null) {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: process.env.APP_TIMEZONE || "Asia/Kolkata" });
 }
+
+export function GroupBadge({ name }: { name: string | null | undefined }) {
+  return (
+    <span className="rounded-full border px-2 py-0.5 text-xs font-medium" style={{ borderColor: "var(--border)" }}>
+      {name ?? "Full body"}
+    </span>
+  );
+}

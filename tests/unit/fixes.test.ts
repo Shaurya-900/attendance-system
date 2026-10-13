@@ -23,7 +23,7 @@ describe("fetchAll (Supabase 1000-row cap)", () => {
 describe("closing a meeting is retryable", () => {
   it("fills gaps when run again on a closed meeting", async () => {
     const [, alice, bob] = await repo.listProfiles();
-    const m = await repo.createMeeting({ title: "Retry", startsAt: new Date().toISOString(), graceMinutes: 10, createdBy: "user-0" });
+    const m = await repo.createMeeting({ title: "Retry", startsAt: new Date().toISOString(), graceMinutes: 10, groupId: null, createdBy: "user-0" });
     await repo.setMeetingStatus(m.id, "closed"); // a previous close died after this step
     await repo.upsertAttendance({ meetingId: m.id, userId: alice.id, status: "absent", checkedInAt: null, credentialId: null, deviceId: null, source: "manual", flags: [] });
     await closeMeeting(repo, m.id, "user-0");
@@ -37,10 +37,10 @@ describe("late sign-ups can't dodge strikes", () => {
   it("backfills absences for closed meetings since being added to the roster", async () => {
     const userId = "late-joiner";
     await repo.upsertProfile({ id: userId, email: "late@ecell.test", name: "Late", rollNo: null, role: "member", active: true });
-    const before = await repo.createMeeting({ title: "Before roster", startsAt: "2000-01-01T10:00:00.000Z", graceMinutes: 10, createdBy: "user-0" });
-    const after1 = await repo.createMeeting({ title: "After 1", startsAt: "2030-01-01T10:00:00.000Z", graceMinutes: 10, createdBy: "user-0" });
-    const after2 = await repo.createMeeting({ title: "After 2", startsAt: "2030-01-08T10:00:00.000Z", graceMinutes: 10, createdBy: "user-0" });
-    const open = await repo.createMeeting({ title: "Still open", startsAt: "2030-01-15T10:00:00.000Z", graceMinutes: 10, createdBy: "user-0" });
+    const before = await repo.createMeeting({ title: "Before roster", startsAt: "2000-01-01T10:00:00.000Z", graceMinutes: 10, groupId: null, createdBy: "user-0" });
+    const after1 = await repo.createMeeting({ title: "After 1", startsAt: "2030-01-01T10:00:00.000Z", graceMinutes: 10, groupId: null, createdBy: "user-0" });
+    const after2 = await repo.createMeeting({ title: "After 2", startsAt: "2030-01-08T10:00:00.000Z", graceMinutes: 10, groupId: null, createdBy: "user-0" });
+    const open = await repo.createMeeting({ title: "Still open", startsAt: "2030-01-15T10:00:00.000Z", graceMinutes: 10, groupId: null, createdBy: "user-0" });
     for (const m of [before, after1, after2]) await repo.setMeetingStatus(m.id, "closed");
     const ex = await repo.createExcuse({ meetingId: after2.id, userId, reason: "Exam" });
     await repo.setExcuseStatus(ex.id, "approved", "user-0");

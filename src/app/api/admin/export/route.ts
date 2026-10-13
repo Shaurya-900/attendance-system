@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
+import { canManageGroup, getCurrentUser, getStaff } from "@/lib/auth";
 import { getRepo } from "@/lib/repo";
 
 const csvCell = (v: unknown) => {
@@ -10,9 +10,13 @@ const csvCell = (v: unknown) => {
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
-  if (user?.role !== "admin") return new NextResponse("Forbidden", { status: 403 });
+  if (!user) return new NextResponse("Forbidden", { status: 403 });
   const meetingId = new URL(req.url).searchParams.get("meeting");
   const repo = getRepo();
+  // Leads may export their own group's meetings; the full export is admin-only.
+  const staff = await getStaff(user);
+  const target = meetingId ? await repo.getMeeting(meetingId) : null;
+  if (!staff.isAdmin && !(target && canManageGroup(staff, target.groupId))) return new NextResponse("Forbidden", { status: 403 });
   const [meetings, profiles, attendance] = await Promise.all([repo.listMeetings(), repo.listProfiles(), repo.listAllAttendance()]);
   const byMeeting = new Map(meetings.map((m) => [m.id, m]));
   const byUser = new Map(profiles.map((p) => [p.id, p]));

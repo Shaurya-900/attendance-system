@@ -16,6 +16,9 @@ export async function requestExcuse(_prev: ExcuseState, formData: FormData): Pro
   const repo = getRepo();
   const meeting = await repo.getMeeting(meetingId);
   if (!meeting) return { error: "That meeting no longer exists." };
+  if (meeting.groupId && !(await repo.listGroupMembers(meeting.groupId)).some((m) => m.userId === user.id)) {
+    return { error: "You're not in the group this meeting is for." };
+  }
   if (Date.now() > new Date(meeting.startsAt).getTime() + EXCUSE_WINDOW_MS) return { error: "Excuses close 24 hours after the meeting starts." };
   const attended = (await repo.listAttendanceForUser(user.id)).find((a) => a.meetingId === meetingId);
   if (attended && attended.status !== "absent") return { error: "You don't need an excuse for this meeting." };

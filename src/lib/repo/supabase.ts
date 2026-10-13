@@ -1,5 +1,5 @@
 import type {
-  Attendance, AuditEntry, Excuse, Meeting, Passkey, Profile, RosterEntry, Semester, StrikeAdjustment,
+  Attendance, AuditEntry, Excuse, Group, GroupMember, Meeting, Passkey, Profile, RosterEntry, Semester, StrikeAdjustment,
 } from "../types";
 import { createAdminClient } from "../supabase/admin";
 import type { Repo } from "./types";
@@ -10,12 +10,14 @@ type Row = Record<string, any>;
 const toProfile = (r: Row): Profile => ({ id: r.id, email: r.email, name: r.name, rollNo: r.roll_no, role: r.role, active: r.active, createdAt: r.created_at });
 const toRoster = (r: Row): RosterEntry => ({ email: r.email, name: r.name, rollNo: r.roll_no, role: r.role, addedAt: r.added_at });
 const toPasskey = (r: Row): Passkey => ({ userId: r.user_id, credentialId: r.credential_id, publicKey: r.public_key, counter: Number(r.counter), transports: r.transports, deviceId: r.device_id, createdAt: r.created_at });
-const toMeeting = (r: Row): Meeting => ({ id: r.id, title: r.title, startsAt: r.starts_at, graceMinutes: r.grace_minutes, status: r.status, qrSecret: r.qr_secret, createdBy: r.created_by, createdAt: r.created_at });
+const toMeeting = (r: Row): Meeting => ({ id: r.id, title: r.title, startsAt: r.starts_at, graceMinutes: r.grace_minutes, status: r.status, qrSecret: r.qr_secret, groupId: r.group_id ?? null, createdBy: r.created_by, createdAt: r.created_at });
 const toAttendance = (r: Row): Attendance => ({ meetingId: r.meeting_id, userId: r.user_id, status: r.status, checkedInAt: r.checked_in_at, credentialId: r.credential_id, deviceId: r.device_id, source: r.source, flags: r.flags ?? [] });
 const fromAttendance = (a: Attendance): Row => ({ meeting_id: a.meetingId, user_id: a.userId, status: a.status, checked_in_at: a.checkedInAt, credential_id: a.credentialId, device_id: a.deviceId, source: a.source, flags: a.flags });
 const toExcuse = (r: Row): Excuse => ({ id: r.id, meetingId: r.meeting_id, userId: r.user_id, reason: r.reason, status: r.status, reviewedBy: r.reviewed_by, createdAt: r.created_at });
 const toSemester = (r: Row): Semester => ({ id: r.id, name: r.name, startsOn: r.starts_on, endsOn: r.ends_on });
-const toAdjustment = (r: Row): StrikeAdjustment => ({ id: r.id, userId: r.user_id, semesterId: r.semester_id, points: Number(r.points), reason: r.reason, createdBy: r.created_by, createdAt: r.created_at });
+const toAdjustment = (r: Row): StrikeAdjustment => ({ id: r.id, userId: r.user_id, semesterId: r.semester_id, groupId: r.group_id ?? null, points: Number(r.points), reason: r.reason, createdBy: r.created_by, createdAt: r.created_at });
+const toGroup = (r: Row): Group => ({ id: r.id, name: r.name, kind: r.kind, endsOn: r.ends_on, archived: r.archived, createdAt: r.created_at });
+const toGroupMember = (r: Row): GroupMember => ({ groupId: r.group_id, userId: r.user_id, role: r.role, addedAt: r.added_at });
 const toAudit = (r: Row): AuditEntry => ({ id: r.id, actorId: r.actor_id, action: r.action, target: r.target, details: r.details, createdAt: r.created_at });
 
 /** Throws on error. For `.maybeSingle()` the result can still be null at runtime — callers check. */
@@ -65,7 +67,7 @@ export const supabaseRepo: Repo = {
   async listMeetings() { return (await fetchAll(() => sb().from("meetings").select().order("starts_at", { ascending: false }).order("id"))).map(toMeeting); },
   async getMeeting(id) { const r = check(await sb().from("meetings").select().eq("id", id).maybeSingle()); return r ? toMeeting(r) : null; },
   async createMeeting(input) {
-    return toMeeting(check(await sb().from("meetings").insert({ title: input.title, starts_at: input.startsAt, grace_minutes: input.graceMinutes, created_by: input.createdBy }).select().single()));
+    return toMeeting(check(await sb().from("meetings").insert({ title: input.title, starts_at: input.startsAt, grace_minutes: input.graceMinutes, group_id: input.groupId, created_by: input.createdBy }).select().single()));
   },
   async setMeetingStatus(id, status) { check(await sb().from("meetings").update({ status }).eq("id", id)); },
 
@@ -111,8 +113,32 @@ export const supabaseRepo: Repo = {
     })).map(toAdjustment);
   },
   async addAdjustment(input) {
-    check(await sb().from("strike_adjustments").insert({ user_id: input.userId, semester_id: input.semesterId, points: input.points, reason: input.reason, created_by: input.createdBy }));
+    check(await sb().from("strike_adjustments").insert({ user_id: input.userId, semester_id: input.semesterId, group_id: input.groupId, points: input.points, reason: input.reason, created_by: input.createdBy }));
   },
+
+  async listGroups() { return (await fetchAll(() => sb().from("groups").select().order("name").order("id"))).map(toGroup); },
+  async getGroup(id) { const r = check(await sb().from("groups").select().eq("id", id).maybeSingle()); return r ? toGroup(r) : null; },
+  async createGroup(input) {
+    return toGroup(check(await sb().from("groups").insert({ name: input.name, kind: input.kind, ends_on: input.endsOn }).select().single()));
+  },
+  async updateGroup(id, patch) {
+    const row: Row = {};
+    if (patch.name !== undefined) row.name = patch.name;
+    if (patch.endsOn !== undefined) row.ends_on = patch.endsOn;
+    if (patch.archived !== undefined) row.archived = patch.archived;
+    check(await sb().from("groups").update(row).eq("id", id));
+  },
+  async listGroupMembers(groupId) {
+    return (await fetchAll(() => {
+      let q = sb().from("group_members").select();
+      if (groupId) q = q.eq("group_id", groupId);
+      return q.order("group_id").order("user_id");
+    })).map(toGroupMember);
+  },
+  async setGroupMember(groupId, userId, role) {
+    check(await sb().from("group_members").upsert({ group_id: groupId, user_id: userId, role }, { onConflict: "group_id,user_id" }));
+  },
+  async removeGroupMember(groupId, userId) { check(await sb().from("group_members").delete().eq("group_id", groupId).eq("user_id", userId)); },
 
   async addAudit(input) { check(await sb().from("audit_log").insert({ actor_id: input.actorId, action: input.action, target: input.target, details: input.details })); },
   async listAudit(limit) { return check(await sb().from("audit_log").select().order("created_at", { ascending: false }).limit(limit)).map(toAudit); },

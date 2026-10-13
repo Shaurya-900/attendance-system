@@ -1,5 +1,5 @@
 import type {
-  Attendance, AuditEntry, Excuse, ExcuseStatus, Meeting, MeetingStatus, Passkey, Profile, RosterEntry, Semester, StrikeAdjustment,
+  Attendance, AuditEntry, Excuse, Group, GroupMember, ExcuseStatus, Meeting, MeetingStatus, Passkey, Profile, RosterEntry, Semester, StrikeAdjustment,
 } from "../types";
 
 export type InsertAttendanceResult = "ok" | "duplicate_user" | "duplicate_device";
@@ -23,7 +23,7 @@ export interface Repo {
 
   listMeetings(): Promise<Meeting[]>;
   getMeeting(id: string): Promise<Meeting | null>;
-  createMeeting(input: { title: string; startsAt: string; graceMinutes: number; createdBy: string }): Promise<Meeting>;
+  createMeeting(input: { title: string; startsAt: string; graceMinutes: number; groupId: string | null; createdBy: string }): Promise<Meeting>;
   setMeetingStatus(id: string, status: MeetingStatus): Promise<void>;
 
   listAttendanceForMeeting(meetingId: string): Promise<Attendance[]>;
@@ -45,6 +45,14 @@ export interface Repo {
 
   listAdjustments(userId?: string): Promise<StrikeAdjustment[]>;
   addAdjustment(input: Omit<StrikeAdjustment, "id" | "createdAt">): Promise<void>;
+
+  listGroups(): Promise<Group[]>;
+  getGroup(id: string): Promise<Group | null>;
+  createGroup(input: Pick<Group, "name" | "kind" | "endsOn">): Promise<Group>;
+  updateGroup(id: string, patch: Partial<Pick<Group, "name" | "endsOn" | "archived">>): Promise<void>;
+  listGroupMembers(groupId?: string): Promise<GroupMember[]>;
+  setGroupMember(groupId: string, userId: string, role: GroupMember["role"]): Promise<void>;
+  removeGroupMember(groupId: string, userId: string): Promise<void>;
 
   addAudit(input: Omit<AuditEntry, "id" | "createdAt">): Promise<void>;
   listAudit(limit: number): Promise<AuditEntry[]>;

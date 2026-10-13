@@ -1,9 +1,11 @@
 import { LevelBadge } from "@/components/ui";
-import { standings } from "@/lib/meetings";
+import { requireAdmin } from "@/lib/auth";
+import { scopeLabel, standings } from "@/lib/meetings";
 import { getRepo } from "@/lib/repo";
 import { adjustStrikes, importRoster, resetPasskey, setActive } from "../actions";
 
 export default async function MembersPage() {
+  await requireAdmin();
   const repo = getRepo();
   const [profiles, roster, passkeys, { semester, byUser }] = await Promise.all([
     repo.listProfiles(), repo.listRoster(), repo.listPasskeys(), standings(repo),
@@ -20,11 +22,18 @@ export default async function MembersPage() {
           <thead><tr><th>Member</th><th>Standing</th><th>Phone</th><th>Adjust strikes</th><th></th></tr></thead>
           <tbody>
             {profiles.map((p) => {
-              const s = byUser.get(p.id)!;
+              const scopes = (byUser.get(p.id) ?? []).filter((s) => s.group || p.role === "member");
               return (
                 <tr key={p.id} className={p.active ? "" : "opacity-50"}>
                   <td>{p.name}<div className="muted text-xs">{p.email} · {p.rollNo} · {p.role}</div></td>
-                  <td>{p.role === "member" ? <LevelBadge level={s.level} points={s.points} /> : <span className="muted text-xs">admin</span>}</td>
+                  <td className="space-y-1">
+                    {scopes.length === 0 && <span className="muted text-xs">admin</span>}
+                    {scopes.map((s) => (
+                      <div key={s.group?.id ?? "all"} className="flex items-center gap-1 text-xs">
+                        <span className="muted">{scopeLabel(s)}:</span> <LevelBadge level={s.summary.level} points={s.summary.points} />
+                      </div>
+                    ))}
+                  </td>
                   <td>
                     {hasPasskey.has(p.id) ? (
                       <form action={resetPasskey}>
@@ -37,6 +46,9 @@ export default async function MembersPage() {
                     <form action={adjustStrikes} className="flex flex-wrap gap-1">
                       <input type="hidden" name="userId" value={p.id} />
                       <input type="hidden" name="semesterId" value={semester?.id ?? ""} />
+                      <select name="groupId" className="input w-auto py-1 text-xs" aria-label="Strike count">
+                        {(byUser.get(p.id) ?? []).map((s) => <option key={s.group?.id ?? "all"} value={s.group?.id ?? ""}>{scopeLabel(s)}</option>)}
+                      </select>
                       <input name="points" type="number" step="0.5" min={-10} max={10} required placeholder="±pts" className="input w-16 py-1 text-xs" />
                       <input name="reason" required placeholder="Reason" className="input w-28 py-1 text-xs" />
                       <button className="btn-ghost py-1 text-xs">Apply</button>

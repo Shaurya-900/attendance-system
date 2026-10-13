@@ -1,10 +1,14 @@
 import { fmt } from "@/components/ui";
+import { canManageGroup, requireStaff } from "@/lib/auth";
 import { getRepo } from "@/lib/repo";
 import { reviewExcuse } from "../actions";
 
 export default async function ExcusesPage() {
+  const staff = await requireStaff();
   const repo = getRepo();
-  const [excuses, profiles, meetings] = await Promise.all([repo.listExcuses(), repo.listProfiles(), repo.listMeetings()]);
+  const [allExcuses, profiles, meetings] = await Promise.all([repo.listExcuses(), repo.listProfiles(), repo.listMeetings()]);
+  const meetingGroup = new Map(meetings.map((m) => [m.id, m.groupId]));
+  const excuses = allExcuses.filter((e) => canManageGroup(staff, meetingGroup.get(e.meetingId) ?? null));
   const names = new Map(profiles.map((p) => [p.id, p.name]));
   const titles = new Map(meetings.map((m) => [m.id, m]));
   return (
