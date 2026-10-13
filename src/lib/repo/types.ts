@@ -41,6 +41,7 @@ export interface Repo {
 
   listSemesters(): Promise<Semester[]>;
   createSemester(input: Omit<Semester, "id">): Promise<Semester>;
+  deleteSemester(id: string): Promise<void>;
 
   listAdjustments(userId?: string): Promise<StrikeAdjustment[]>;
   addAdjustment(input: Omit<StrikeAdjustment, "id" | "createdAt">): Promise<void>;

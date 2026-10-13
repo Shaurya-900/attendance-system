@@ -3,6 +3,7 @@ import { fmt, LevelBadge } from "@/components/ui";
 import { standings } from "@/lib/meetings";
 import { getRepo } from "@/lib/repo";
 import { createSemester } from "./actions";
+import { DeleteSemesterButton } from "./delete-semester-button";
 
 export default async function AdminDashboard() {
   const repo = getRepo();
@@ -50,7 +51,14 @@ export default async function AdminDashboard() {
       <section className="card space-y-3">
         <h2 className="font-semibold">Semesters</h2>
         <p className="muted text-xs">Strikes reset at each semester boundary. Current: {semester?.name ?? "none (counting all time)"}</p>
-        <ul className="text-sm">{semesters.map((s) => <li key={s.id}>{s.name}: {s.startsOn} → {s.endsOn}</li>)}</ul>
+        <ul className="space-y-1 text-sm">
+          {semesters.map((s) => (
+            <li key={s.id} className="flex items-center justify-between gap-2">
+              <span>{s.name}: {s.startsOn} → {s.endsOn}</span>
+              <DeleteSemesterButton id={s.id} name={s.name} />
+            </li>
+          ))}
+        </ul>
         <form action={createSemester} className="grid gap-2 sm:grid-cols-4">
           <input name="name" className="input" placeholder="e.g. Odd sem 2026" required />
           <input name="startsOn" type="date" className="input" required />
