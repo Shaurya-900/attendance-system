@@ -122,3 +122,20 @@ test("group meetings only admit group members and keep their own strikes", async
   await admin.goto("/admin/members");
   await expect(admin.getByRole("row", { name: /Alice Member/ })).toContainText("Leads:");
 });
+
+test("semesters: overlap is refused, delete removes the row immediately", async ({ browser, baseURL }) => {
+  const admin = await asAdmin(await browser.newContext(), baseURL!);
+  await admin.goto("/admin");
+  const year = new Date().getFullYear();
+  await admin.getByPlaceholder("e.g. Odd sem 2026").fill("Overlap");
+  await admin.getByLabel("Starts on").fill(`${year}-03-01`);
+  await admin.getByLabel("Ends on").fill(`${year}-04-01`);
+  await admin.getByRole("button", { name: "Add semester" }).click();
+  await expect(admin.locator("p[role=alert]")).toContainText("Overlaps");
+
+  admin.once("dialog", (d) => d.accept());
+  await admin.getByRole("button", { name: /Delete semester/ }).first().click();
+  await expect(admin.getByText("No semesters yet.")).toBeVisible();
+  await admin.reload();
+  await expect(admin.getByText("No semesters yet.")).toBeVisible();
+});

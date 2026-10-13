@@ -1,6 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import { env } from "./env";
 import { getRepo } from "./repo";
 import { createSessionClient } from "./supabase/server";
@@ -8,18 +9,23 @@ import type { Profile } from "./types";
 
 export const DEV_USER_COOKIE = "dev_uid";
 
-export async function getCurrentUser(): Promise<Profile | null> {
+/**
+ * The signed-in user. Cached per request, so layouts and pages that all ask for it share one lookup.
+ * getClaims() verifies the session token locally when the project uses asymmetric JWT keys
+ * (falling back to a network check otherwise), so this is usually a single database query.
+ */
+export const getCurrentUser = cache(async (): Promise<Profile | null> => {
   let userId: string | undefined;
   if (env.backend === "memory") {
     userId = (await cookies()).get(DEV_USER_COOKIE)?.value;
   } else {
-    const { data } = await (await createSessionClient()).auth.getUser();
-    userId = data.user?.id;
+    const { data } = await (await createSessionClient()).auth.getClaims();
+    userId = data?.claims?.sub;
   }
   if (!userId) return null;
   const profile = await getRepo().getProfile(userId);
   return profile?.active ? profile : null;
-}
+});
 
 /** Only same-site relative paths, to avoid open redirects. */
 export function safeNext(next: string | null | undefined, fallback = "/me"): string {
@@ -52,10 +58,13 @@ export interface StaffContext {
 }
 
 /** Admins, or members who lead at least one group. Leads only get their own groups' meetings. */
-export async function getStaff(user: Profile): Promise<StaffContext> {
+const ledGroupIdsFor = cache(async (userId: string): Promise<Set<string>> => {
   const memberships = await getRepo().listGroupMembers();
-  const ledGroupIds = new Set(memberships.filter((m) => m.userId === user.id && m.role === "lead").map((m) => m.groupId));
-  return { user, isAdmin: user.role === "admin", ledGroupIds };
+  return new Set(memberships.filter((m) => m.userId === userId && m.role === "lead").map((m) => m.groupId));
+});
+
+export async function getStaff(user: Profile): Promise<StaffContext> {
+  return { user, isAdmin: user.role === "admin", ledGroupIds: await ledGroupIdsFor(user.id) };
 }
 
 export async function requireStaff(next = "/admin"): Promise<StaffContext> {
