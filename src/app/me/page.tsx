@@ -1,6 +1,6 @@
 import { fmt, GroupBadge, LevelBadge, StatusBadge } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
-import { EXCUSE_WINDOW_MS, scopeLabel, standings } from "@/lib/meetings";
+import { EXCUSE_WINDOW_MS, scopeLabel, standingsForUser } from "@/lib/meetings";
 import { getRepo } from "@/lib/repo";
 import { FLAGGED_AT, WARNING_AT } from "@/lib/strikes";
 import { ExcuseForm } from "./excuse-form";
@@ -8,18 +8,17 @@ import { ExcuseForm } from "./excuse-form";
 export default async function MePage() {
   const user = await requireUser("/me");
   const repo = getRepo();
-  const [allMeetings, records, excuses, memberships, groups, { semester, byUser }] = await Promise.all([
-    repo.listMeetings(), repo.listAttendanceForUser(user.id), repo.listExcuses({ userId: user.id }),
-    repo.listGroupMembers(), repo.listGroups(), standings(repo),
+  const [{ semester, scopes: allScopes, meetings: allMeetings, attendance: records, groups, memberships }, excuses] = await Promise.all([
+    standingsForUser(repo, user.id), repo.listExcuses({ userId: user.id }),
   ]);
-  const myGroups = new Set(memberships.filter((m) => m.userId === user.id).map((m) => m.groupId));
+  const myGroups = new Set(memberships.map((m) => m.groupId));
   const groupName = new Map(groups.map((g) => [g.id, g.name]));
   const recordFor = new Map(records.map((r) => [r.meetingId, r]));
   const excuseFor = new Map(excuses.map((e) => [e.meetingId, e]));
   // Meetings I'm expected at: full body (members), my groups' meetings, plus anything I have a record for.
   const meetings = allMeetings.filter((m) =>
     recordFor.has(m.id) || (m.groupId ? myGroups.has(m.groupId) : user.role === "member"));
-  const scopes = (byUser.get(user.id) ?? []).filter((s) => s.group || user.role === "member");
+  const scopes = allScopes.filter((s) => s.group || user.role === "member");
   const now = Date.now();
   const excusable = meetings.filter((m) => {
     const r = recordFor.get(m.id);

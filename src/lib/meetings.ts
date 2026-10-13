@@ -1,7 +1,7 @@
 import { env } from "./env";
 import type { Repo } from "./repo/types";
 import { computeStrikes, currentSemester, localDate, type StrikeSummary } from "./strikes";
-import type { Attendance, Group, Meeting, Profile, Semester } from "./types";
+import type { Attendance, Group, GroupMember, Meeting, Profile, Semester, StrikeAdjustment } from "./types";
 
 /** Members can ask for an excuse until 24h after a meeting starts. */
 export const EXCUSE_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -91,6 +91,32 @@ export function worstScope(scopes: ScopeStanding[]): ScopeStanding {
   return scopes.reduce((a, b) => (b.summary.points > a.summary.points ? b : a));
 }
 
+interface StandingData {
+  meetings: Meeting[];
+  attendance: Attendance[];
+  adjustments: StrikeAdjustment[];
+  semesters: Semester[];
+  groups: Group[];
+  memberships: GroupMember[];
+}
+
+function scopesFor(userId: string, d: StandingData, semester: Semester | null): ScopeStanding[] {
+  const byMeeting = new Map(d.meetings.map((m) => [m.id, m]));
+  const groupById = new Map(d.groups.map((g) => [g.id, g]));
+  const summarize = (groupId: string | null) => computeStrikes(
+    withStart(d.attendance.filter((a) => a.userId === userId && (byMeeting.get(a.meetingId)?.groupId ?? null) === groupId), byMeeting),
+    d.adjustments.filter((a) => a.userId === userId && (a.groupId ?? null) === groupId),
+    semester,
+    env.timezone,
+  );
+  const scopes: ScopeStanding[] = [{ group: null, summary: summarize(null) }];
+  for (const m of d.memberships.filter((x) => x.userId === userId)) {
+    const group = groupById.get(m.groupId);
+    if (group) scopes.push({ group, summary: summarize(group.id) });
+  }
+  return scopes;
+}
+
 /**
  * Strike standings in the current semester (or all time when none is configured).
  * Full body and every group keep separate counts; `byUser` maps each profile to the full-body
@@ -101,23 +127,19 @@ export async function standings(repo: Repo): Promise<{ semester: Semester | null
     repo.listMeetings(), repo.listAllAttendance(), repo.listAdjustments(), repo.listSemesters(), repo.listProfiles(),
     repo.listGroups(), repo.listGroupMembers(),
   ]);
+  const data = { meetings, attendance, adjustments, semesters, groups, memberships };
   const semester = currentSemester(semesters, env.timezone);
-  const byMeeting = new Map(meetings.map((m) => [m.id, m]));
-  const groupById = new Map(groups.map((g) => [g.id, g]));
-  const summarize = (userId: string, groupId: string | null) => computeStrikes(
-    withStart(attendance.filter((a) => a.userId === userId && (byMeeting.get(a.meetingId)?.groupId ?? null) === groupId), byMeeting),
-    adjustments.filter((a) => a.userId === userId && (a.groupId ?? null) === groupId),
-    semester,
-    env.timezone,
-  );
-  const byUser = new Map<string, ScopeStanding[]>();
-  for (const p of profiles) {
-    const scopes: ScopeStanding[] = [{ group: null, summary: summarize(p.id, null) }];
-    for (const m of memberships.filter((x) => x.userId === p.id)) {
-      const group = groupById.get(m.groupId);
-      if (group) scopes.push({ group, summary: summarize(p.id, group.id) });
-    }
-    byUser.set(p.id, scopes);
-  }
-  return { semester, byUser };
+  return { semester, byUser: new Map(profiles.map((p) => [p.id, scopesFor(p.id, data, semester)])) };
+}
+
+/** Same as `standings`, but only loads one member's records — used on their own page. */
+export async function standingsForUser(repo: Repo, userId: string): Promise<{ semester: Semester | null; scopes: ScopeStanding[]; meetings: Meeting[]; attendance: Attendance[]; groups: Group[]; memberships: GroupMember[] }> {
+  const [meetings, attendance, adjustments, semesters, groups, memberships] = await Promise.all([
+    repo.listMeetings(), repo.listAttendanceForUser(userId), repo.listAdjustments(userId), repo.listSemesters(),
+    repo.listGroups(), repo.listGroupMembers(),
+  ]);
+  const mine = memberships.filter((m) => m.userId === userId);
+  const semester = currentSemester(semesters, env.timezone);
+  const scopes = scopesFor(userId, { meetings, attendance, adjustments, semesters, groups, memberships: mine }, semester);
+  return { semester, scopes, meetings, attendance, groups, memberships: mine };
 }

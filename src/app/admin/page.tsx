@@ -11,11 +11,12 @@ export default async function AdminDashboard() {
   const staff = await requireStaff();
   if (!staff.isAdmin) redirect("/admin/meetings");
   const repo = getRepo();
-  const [profiles, meetings, pending, audit, semesters, { semester, byUser }] = await Promise.all([
-    repo.listProfiles(), repo.listMeetings(), repo.listExcuses({ status: "pending" }), repo.listAudit(200), repo.listSemesters(), standings(repo),
+  const [profiles, meetings, pending, audit, semesters, roster, { semester, byUser }] = await Promise.all([
+    repo.listProfiles(), repo.listMeetings(), repo.listExcuses({ status: "pending" }), repo.listAudit(200), repo.listSemesters(),
+    repo.listRoster(), standings(repo),
   ]);
   const joined = new Set(profiles.map((p) => p.email));
-  const notJoined = (await repo.listRoster()).filter((r) => r.role === "member" && !joined.has(r.email));
+  const notJoined = roster.filter((r) => r.role === "member" && !joined.has(r.email));
   const names = new Map(profiles.map((p) => [p.id, p.name]));
   // One row per member per strike count (full body or a group) that is at warning or worse.
   const atRisk = profiles
