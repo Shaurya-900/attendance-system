@@ -12,7 +12,7 @@ export function SemesterForm() {
         <input name="name" className="input" placeholder="e.g. Odd sem 2026" required />
         <input name="startsOn" type="date" className="input" required aria-label="Starts on" />
         <input name="endsOn" type="date" className="input" required aria-label="Ends on" />
-        <button className="btn" disabled={pending}>Add semester</button>
+        <button className="btn" disabled={pending}>{pending ? "Adding…" : "Add semester"}</button>
       </div>
       <FormMessage state={state} />
     </form>

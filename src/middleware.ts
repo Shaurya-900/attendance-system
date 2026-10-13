@@ -15,10 +15,12 @@ export async function middleware(req: NextRequest) {
       },
     },
   });
-  await supabase.auth.getUser();
+  // Refreshes an expiring session; verifies locally when the project uses asymmetric JWT keys.
+  await supabase.auth.getClaims();
   return res;
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest).*)"],
+  // Skip static assets and the projector's 2-second live poll (that route checks the session itself).
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|api/admin/meetings/[^/]+/live).*)"],
 };

@@ -166,10 +166,8 @@ export async function deleteSemester(formData: FormData) {
   const admin = await requireAdmin();
   const id = str(formData, "semesterId");
   const repo = getRepo();
-  const semester = (await repo.listSemesters()).find((s) => s.id === id);
-  if (!semester) return;
   await repo.deleteSemester(id);
-  await repo.addAudit({ actorId: admin.id, action: "semester.delete", target: id, details: { name: semester.name, startsOn: semester.startsOn, endsOn: semester.endsOn } });
+  await repo.addAudit({ actorId: admin.id, action: "semester.delete", target: id, details: { name: str(formData, "name") } });
   revalidatePath("/admin");
 }
 
