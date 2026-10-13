@@ -205,3 +205,28 @@ test("double-clicking Create makes one meeting; admin can excuse a member", asyn
   await admin.getByRole("link", { name: "Double click test" }).click();
   await expect(admin.getByRole("row", { name: /Carol Member/ })).toContainText("excused");
 });
+
+test("admin can delete a group and a member", async ({ browser, baseURL }) => {
+  const admin = await asAdmin(await browser.newContext(), baseURL!);
+  admin.on("dialog", (d) => d.accept());
+
+  await admin.goto("/admin/groups");
+  await admin.getByPlaceholder(/e\.g\. Marketing/).fill("Delete me team");
+  await admin.getByRole("button", { name: "Create" }).click();
+  await expect(admin.getByRole("heading", { name: "Delete me team" })).toBeVisible();
+  await admin.getByRole("button", { name: "Delete group" }).click();
+  await admin.waitForURL(/\/admin\/groups$/);
+  await expect(admin.getByRole("link", { name: "Delete me team" })).toHaveCount(0);
+
+  await admin.goto("/admin/members");
+  await admin.getByRole("textbox").last().fill("temp@ecell.test,Temp Person,X1");
+  await admin.getByRole("button", { name: "Import" }).click();
+  await expect(admin.getByText("temp@ecell.test")).toBeVisible();
+  await admin.getByRole("button", { name: "Remove" }).click();
+  await expect(admin.getByText("temp@ecell.test")).toHaveCount(0);
+
+  const bob = admin.getByRole("article", { name: "Bob Member" });
+  await bob.getByRole("button", { name: "Delete" }).click();
+  await expect(admin.getByRole("article", { name: "Bob Member" })).toHaveCount(0);
+  await expect(admin.getByRole("article", { name: "Core Admin" }).getByRole("button", { name: "Delete" })).toHaveCount(0);
+});

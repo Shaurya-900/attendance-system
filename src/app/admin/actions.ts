@@ -284,3 +284,39 @@ export async function addExcuseForMember(_prev: FormState, formData: FormData): 
   refreshAll();
   return { ok: "Excuse added and approved." };
 }
+
+export async function deleteGroup(formData: FormData) {
+  const admin = await requireAdmin();
+  const groupId = str(formData, "groupId");
+  const repo = getRepo();
+  const group = await repo.getGroup(groupId);
+  if (!group) redirect("/admin/groups");
+  await repo.deleteGroup(groupId);
+  await repo.addAudit({ actorId: admin.id, action: "group.delete", target: groupId, details: { name: group.name } });
+  refreshAll();
+  redirect("/admin/groups");
+}
+
+export async function deleteMember(formData: FormData) {
+  const admin = await requireAdmin();
+  const userId = str(formData, "userId");
+  if (!userId || userId === admin.id) return; // admins can't delete themselves
+  const repo = getRepo();
+  const profile = await repo.getProfile(userId);
+  if (!profile) return;
+  await repo.deleteMember(userId);
+  await repo.addAudit({ actorId: admin.id, action: "member.delete", target: null, details: { name: profile.name, email: profile.email } });
+  refreshAll();
+}
+
+/** Remove someone who was added but never signed in. */
+export async function deleteRosterEntry(formData: FormData) {
+  const admin = await requireAdmin();
+  const email = str(formData, "email").toLowerCase();
+  if (!email) return;
+  const repo = getRepo();
+  if ((await repo.listProfiles()).some((p) => p.email === email)) return; // signed-up members go through deleteMember
+  await repo.deleteRosterEntry(email);
+  await repo.addAudit({ actorId: admin.id, action: "roster.delete", target: null, details: { email } });
+  refreshAll();
+}

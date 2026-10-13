@@ -2,10 +2,11 @@ import { LevelBadge } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { scopeLabel, standings } from "@/lib/meetings";
 import { getRepo } from "@/lib/repo";
-import { adjustStrikes, importRoster, resetPasskey, setActive } from "../actions";
+import { ConfirmForm } from "@/components/confirm-form";
+import { adjustStrikes, deleteMember, deleteRosterEntry, importRoster, resetPasskey, setActive } from "../actions";
 
 export default async function MembersPage() {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const repo = getRepo();
   const [profiles, roster, passkeys, { semester, byUser }] = await Promise.all([
     repo.listProfiles(), repo.listRoster(), repo.listPasskeys(), standings(repo),
@@ -28,11 +29,21 @@ export default async function MembersPage() {
                   <div className="font-semibold">{p.name}</div>
                   <div className="muted break-all text-xs">{p.email} · {p.rollNo} · {p.role}</div>
                 </div>
-                <form action={setActive}>
-                  <input type="hidden" name="userId" value={p.id} />
-                  <input type="hidden" name="active" value={String(!p.active)} />
-                  <button className="btn-ghost text-xs">{p.active ? "Deactivate" : "Reactivate"}</button>
-                </form>
+                <div className="flex gap-2">
+                  <form action={setActive}>
+                    <input type="hidden" name="userId" value={p.id} />
+                    <input type="hidden" name="active" value={String(!p.active)} />
+                    <button className="btn-ghost text-xs">{p.active ? "Deactivate" : "Reactivate"}</button>
+                  </form>
+                  {p.id !== admin.id && (
+                    <ConfirmForm
+                      action={deleteMember}
+                      fields={{ userId: p.id }}
+                      label="Delete"
+                      confirm={`Delete ${p.name}? Their login, attendance, excuses and group memberships are removed and they can't sign in again unless re-added. This can't be undone.`}
+                    />
+                  )}
+                </div>
               </div>
 
               <div className="flex flex-wrap gap-x-4 gap-y-1">
@@ -79,7 +90,14 @@ export default async function MembersPage() {
       {notJoined.length > 0 && (
         <div className="card">
           <h2 className="font-semibold">Added, not signed in yet ({notJoined.length})</h2>
-          <p className="muted text-sm">{notJoined.map((r) => r.name).join(", ")}</p>
+          <ul className="mt-2 divide-y text-sm" style={{ borderColor: "var(--border)" }}>
+            {notJoined.map((r) => (
+              <li key={r.email} className="flex flex-wrap items-center justify-between gap-2 py-1">
+                <span>{r.name} <span className="muted break-all text-xs">{r.email}</span></span>
+                <ConfirmForm action={deleteRosterEntry} fields={{ email: r.email }} label="Remove" pendingLabel="Removing…" confirm={`Remove ${r.name} (${r.email})? They won't be able to sign in.`} />
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>
