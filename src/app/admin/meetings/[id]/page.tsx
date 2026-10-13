@@ -27,7 +27,7 @@ export default async function MeetingPage({ params }: { params: Promise<{ id: st
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-bold">{meeting.title}</h1>
         <GroupBadge name={group?.name} />
-        <span className="muted text-sm capitalize">{meeting.status} · {fmt(meeting.startsAt)} · late after {meeting.graceMinutes} min</span>
+        <span className="muted text-sm"><span className="capitalize">{meeting.status}</span> · {fmt(meeting.startsAt)} · late after {meeting.graceMinutes} min</span>
       </div>
       <div className="flex flex-wrap gap-2">
         {meeting.status === "scheduled" && (
@@ -52,7 +52,7 @@ export default async function MeetingPage({ params }: { params: Promise<{ id: st
               return (
                 <tr key={p.id}>
                   <td>{p.name} <span className="muted text-xs">{p.rollNo}</span></td>
-                  <td>{r ? <StatusBadge status={r.status} /> : <span className="muted">—</span>}{r && <Flags flags={r.flags} />}{r?.source === "manual" && r.checkedInAt && <span className="muted text-xs"> (edited)</span>}</td>
+                  <td>{r ? <StatusBadge status={r.status} /> : <span className="muted">-</span>}{r && <Flags flags={r.flags} />}{r?.source === "manual" && r.checkedInAt && <span className="muted text-xs"> (edited)</span>}</td>
                   <td>{fmt(r?.checkedInAt ?? null)}</td>
                   <td>
                     <form action={overrideAttendance} className="flex flex-wrap gap-1">

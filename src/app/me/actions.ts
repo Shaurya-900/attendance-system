@@ -1,6 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+
+/** Clear every cached page: one change can affect lists, dropdowns and strike counts elsewhere. */
+function refreshAll() {
+  revalidatePath("/", "layout");
+}
 import { requireUser } from "@/lib/auth";
 import { EXCUSE_WINDOW_MS } from "@/lib/meetings";
 import { getRepo } from "@/lib/repo";
@@ -24,6 +29,6 @@ export async function requestExcuse(_prev: ExcuseState, formData: FormData): Pro
   if (attended && attended.status !== "absent") return { error: "You don't need an excuse for this meeting." };
   if ((await repo.listExcuses({ userId: user.id })).some((e) => e.meetingId === meetingId)) return { error: "You've already sent an excuse for this meeting." };
   await repo.createExcuse({ meetingId, userId: user.id, reason });
-  revalidatePath("/me");
+  refreshAll();
   return { ok: "Excuse sent. An admin will review it." };
 }

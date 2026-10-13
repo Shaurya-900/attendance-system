@@ -1,10 +1,15 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+
+/** Clear every cached page: one change can affect lists, dropdowns and strike counts elsewhere. */
+function refreshAll() {
+  revalidatePath("/", "layout");
+}
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { canManageGroup, requireAdmin, requireStaff } from "@/lib/auth";
-import { applyApprovedExcuse, closeMeeting } from "@/lib/meetings";
+import { applyApprovedExcuse, closeMeeting, expectedMembers } from "@/lib/meetings";
 import { getRepo } from "@/lib/repo";
 import type { AttendanceStatus, Meeting, Role } from "@/lib/types";
 
@@ -33,7 +38,14 @@ export async function createMeeting(formData: FormData) {
     startsAt: z.string().datetime({ offset: true }),
     graceMinutes: z.coerce.number().int().min(0).max(120),
   }).parse({ title: str(formData, "title"), startsAt: str(formData, "startsAt"), graceMinutes: str(formData, "graceMinutes") || 10 });
-  const meeting = await getRepo().createMeeting({ ...input, groupId, createdBy: staff.user.id });
+  const repo = getRepo();
+  // A double click (or a retry on a slow connection) must not create the same meeting twice.
+  const recent = Date.now() - 60_000;
+  const duplicate = (await repo.listMeetings()).find((m) =>
+    m.title === input.title && Date.parse(m.startsAt) === Date.parse(input.startsAt) && m.groupId === groupId &&
+    m.createdBy === staff.user.id && Date.parse(m.createdAt) > recent);
+  const meeting = duplicate ?? await repo.createMeeting({ ...input, startsAt: new Date(input.startsAt).toISOString(), groupId, createdBy: staff.user.id });
+  refreshAll();
   redirect(`/admin/meetings/${meeting.id}`);
 }
 
@@ -44,6 +56,7 @@ export async function startMeeting(formData: FormData) {
   if (meeting.status !== "scheduled") return;
   await repo.setMeetingStatus(id, "live");
   await repo.addAudit({ actorId, action: "meeting.start", target: id, details: {} });
+  refreshAll();
   redirect(`/admin/meetings/${id}/live`);
 }
 
@@ -51,7 +64,7 @@ export async function endMeeting(formData: FormData) {
   const id = str(formData, "meetingId");
   const { actorId } = await requireMeetingManager(id);
   await closeMeeting(getRepo(), id, actorId);
-  revalidatePath(`/admin/meetings/${id}`);
+  refreshAll();
   redirect(`/admin/meetings/${id}`);
 }
 
@@ -70,7 +83,7 @@ export async function overrideAttendance(formData: FormData) {
     source: "manual", flags: prev?.flags ?? [],
   });
   await repo.addAudit({ actorId, action: "attendance.override", target: userId, details: { meetingId, from: prev?.status ?? null, to: status, reason } });
-  revalidatePath(`/admin/meetings/${meetingId}`);
+  refreshAll();
 }
 
 export async function reviewExcuse(formData: FormData) {
@@ -83,7 +96,7 @@ export async function reviewExcuse(formData: FormData) {
   await repo.setExcuseStatus(id, decision, actorId);
   if (decision === "approved") await applyApprovedExcuse(repo, excuse.meetingId, excuse.userId);
   await repo.addAudit({ actorId, action: `excuse.${decision}`, target: excuse.userId, details: { meetingId: excuse.meetingId } });
-  revalidatePath("/admin/excuses");
+  refreshAll();
 }
 
 export async function adjustStrikes(formData: FormData) {
@@ -97,7 +110,7 @@ export async function adjustStrikes(formData: FormData) {
   const repo = getRepo();
   await repo.addAdjustment({ userId, semesterId, groupId, points, reason, createdBy: admin.id });
   await repo.addAudit({ actorId: admin.id, action: "strikes.adjust", target: userId, details: { points, reason, semesterId, groupId } });
-  revalidatePath("/admin/members");
+  refreshAll();
 }
 
 export async function resetPasskey(formData: FormData) {
@@ -106,7 +119,7 @@ export async function resetPasskey(formData: FormData) {
   const repo = getRepo();
   await repo.deletePasskey(userId);
   await repo.addAudit({ actorId: admin.id, action: "passkey.reset", target: userId, details: {} });
-  revalidatePath("/admin/members");
+  refreshAll();
 }
 
 export async function setActive(formData: FormData) {
@@ -117,10 +130,10 @@ export async function setActive(formData: FormData) {
   const repo = getRepo();
   await repo.setProfileActive(userId, active);
   await repo.addAudit({ actorId: admin.id, action: active ? "member.activate" : "member.deactivate", target: userId, details: {} });
-  revalidatePath("/admin/members");
+  refreshAll();
 }
 
-/** CSV lines: email,name,roll_no[,role] — header row optional. */
+/** CSV lines: email,name,roll_no[,role]; a header row is optional. */
 export async function importRoster(formData: FormData) {
   const admin = await requireAdmin();
   const entries = str(formData, "csv").split(/\r?\n/).flatMap((line) => {
@@ -141,7 +154,7 @@ export async function importRoster(formData: FormData) {
     }
   }
   await repo.addAudit({ actorId: admin.id, action: "roster.import", target: null, details: { count: entries.length } });
-  revalidatePath("/admin/members");
+  refreshAll();
 }
 
 export type FormState = { error?: string; ok?: string } | null;
@@ -158,7 +171,7 @@ export async function createSemester(_prev: FormState, formData: FormData): Prom
   if (overlap) return { error: `Overlaps with "${overlap.name}" (${overlap.startsOn} → ${overlap.endsOn}). Delete or adjust that one first.` };
   await repo.createSemester(input);
   await repo.addAudit({ actorId: admin.id, action: "semester.create", target: null, details: input });
-  revalidatePath("/admin");
+  refreshAll();
   return { ok: `Added ${input.name}.` };
 }
 
@@ -168,14 +181,14 @@ export async function deleteSemester(formData: FormData) {
   const repo = getRepo();
   await repo.deleteSemester(id);
   await repo.addAudit({ actorId: admin.id, action: "semester.delete", target: id, details: { name: str(formData, "name") } });
-  revalidatePath("/admin");
+  refreshAll();
 }
 
 export async function createGroup(_prev: FormState, formData: FormData): Promise<FormState> {
   const admin = await requireAdmin();
   const parsed = z.object({
     name: z.string().min(1).max(80),
-    kind: z.enum(["team", "leads", "event"]),
+    kind: z.enum(["team", "core", "leads", "event"]),
     endsOn: z.union([z.string().date(), z.literal("")]),
   }).safeParse({ name: str(formData, "name"), kind: str(formData, "kind"), endsOn: str(formData, "endsOn") });
   if (!parsed.success) return { error: "Give the group a name and type." };
@@ -185,6 +198,7 @@ export async function createGroup(_prev: FormState, formData: FormData): Promise
   }
   const group = await repo.createGroup({ name: parsed.data.name, kind: parsed.data.kind, endsOn: parsed.data.endsOn || null });
   await repo.addAudit({ actorId: admin.id, action: "group.create", target: group.id, details: { name: group.name, kind: group.kind } });
+  refreshAll();
   redirect(`/admin/groups/${group.id}`);
 }
 
@@ -195,8 +209,7 @@ export async function setGroupArchived(formData: FormData) {
   const repo = getRepo();
   await repo.updateGroup(groupId, { archived });
   await repo.addAudit({ actorId: admin.id, action: archived ? "group.archive" : "group.unarchive", target: groupId, details: {} });
-  revalidatePath("/admin/groups");
-  revalidatePath(`/admin/groups/${groupId}`);
+  refreshAll();
 }
 
 /** Add members by ticking names and/or pasting emails (one per line or comma-separated). */
@@ -216,7 +229,7 @@ export async function addGroupMembers(_prev: FormState, formData: FormData): Pro
   const toAdd = [...ids].filter((id) => !existing.has(id) && profiles.some((p) => p.id === id));
   for (const id of toAdd) await repo.setGroupMember(groupId, id, "member");
   if (toAdd.length) await repo.addAudit({ actorId: staff.user.id, action: "group.add_members", target: groupId, details: { count: toAdd.length } });
-  revalidatePath(`/admin/groups/${groupId}`);
+  refreshAll();
   const msg = `Added ${toAdd.length} member(s).`;
   return unknown.length
     ? { error: `${msg} Not found (they must sign in to the app once first): ${unknown.join(", ")}` }
@@ -231,7 +244,7 @@ export async function setGroupRole(formData: FormData) {
   const repo = getRepo();
   await repo.setGroupMember(groupId, userId, role);
   await repo.addAudit({ actorId: admin.id, action: "group.set_role", target: userId, details: { groupId, role } });
-  revalidatePath(`/admin/groups/${groupId}`);
+  refreshAll();
 }
 
 export async function removeGroupMember(formData: FormData) {
@@ -244,5 +257,30 @@ export async function removeGroupMember(formData: FormData) {
   if (!member || (member.role === "lead" && !staff.isAdmin)) return;
   await repo.removeGroupMember(groupId, userId);
   await repo.addAudit({ actorId: staff.user.id, action: "group.remove_member", target: userId, details: { groupId } });
-  revalidatePath(`/admin/groups/${groupId}`);
+  refreshAll();
+}
+
+/** Admins (or the group's leads) record an excuse for a member, e.g. one sent by message. It is approved straight away. */
+export async function addExcuseForMember(_prev: FormState, formData: FormData): Promise<FormState> {
+  const meetingId = str(formData, "meetingId");
+  const userId = str(formData, "userId");
+  const reason = str(formData, "reason").slice(0, 500);
+  if (!meetingId || !userId) return { error: "Pick a meeting and a member." };
+  if (reason.length < 3) return { error: "Add a short reason." };
+  const { actorId, meeting } = await requireMeetingManager(meetingId);
+  const repo = getRepo();
+  if (!(await expectedMembers(repo, meeting)).some((p) => p.id === userId)) {
+    return { error: "That member isn't expected at this meeting." };
+  }
+  const record = (await repo.listAttendanceForMeeting(meetingId)).find((a) => a.userId === userId);
+  if (record && record.status !== "absent" && record.status !== "excused") {
+    return { error: `They are already marked ${record.status} for this meeting.` };
+  }
+  const existing = (await repo.listExcuses({ userId })).find((e) => e.meetingId === meetingId);
+  const excuseId = existing?.id ?? (await repo.createExcuse({ meetingId, userId, reason })).id;
+  await repo.setExcuseStatus(excuseId, "approved", actorId);
+  await applyApprovedExcuse(repo, meetingId, userId);
+  await repo.addAudit({ actorId, action: "excuse.added_by_admin", target: userId, details: { meetingId, reason } });
+  refreshAll();
+  return { ok: "Excuse added and approved." };
 }

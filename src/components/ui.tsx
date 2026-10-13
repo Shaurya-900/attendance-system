@@ -29,7 +29,7 @@ export function Flags({ flags }: { flags: string[] }) {
 }
 
 export function fmt(iso: string | null) {
-  if (!iso) return "—";
+  if (!iso) return "-";
   return new Date(iso).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: process.env.APP_TIMEZONE || "Asia/Kolkata" });
 }
 

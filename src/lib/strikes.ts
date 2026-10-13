@@ -2,7 +2,7 @@ import type { AttendanceStatus, Semester, StrikeAdjustment } from "./types";
 
 export const STRIKE_POINTS: Record<AttendanceStatus, number> = {
   present: 0,
-  late: 0.5, // two lates = one strike
+  late: 0, // recorded, but not penalised
   absent: 1,
   excused: 0,
 };

@@ -13,7 +13,7 @@ export default async function OnboardPage({ searchParams }: { searchParams: Prom
       <div className="card space-y-3 text-sm">
         <p>Do this <strong>on your own phone</strong>. Your fingerprint / face / screen lock creates a passkey that only this phone holds.</p>
         <ul className="muted list-disc space-y-1 pl-5">
-          <li>Every check-in needs this phone and your unlock — sharing your password won&apos;t let anyone check in for you.</li>
+          <li>Every check-in needs this phone and your unlock, so sharing your password won&apos;t let anyone check in for you.</li>
           <li>One phone per member. A phone already registered to someone else will be refused.</li>
           <li>Changed phones? Ask an admin to reset your registration.</li>
         </ul>

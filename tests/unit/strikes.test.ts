@@ -17,7 +17,7 @@ describe("strike levels", () => {
 });
 
 describe("computeStrikes", () => {
-  it("counts absences as 1, lates as 0.5 and excused as 0", () => {
+  it("counts absences as 1 and lates and excused as 0", () => {
     const s = computeStrikes(
       [
         { status: "absent", meetingStartsAt: at("2026-08-01") },
@@ -28,7 +28,7 @@ describe("computeStrikes", () => {
       ],
       [], sem, tz,
     );
-    expect(s).toMatchObject({ points: 2, absences: 1, lates: 2, excused: 1, level: "warning" });
+    expect(s).toMatchObject({ points: 1, absences: 1, lates: 2, excused: 1, level: "ok" });
   });
 
   it("three absences flag the member", () => {

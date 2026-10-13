@@ -20,7 +20,7 @@ const toGroup = (r: Row): Group => ({ id: r.id, name: r.name, kind: r.kind, ends
 const toGroupMember = (r: Row): GroupMember => ({ groupId: r.group_id, userId: r.user_id, role: r.role, addedAt: r.added_at });
 const toAudit = (r: Row): AuditEntry => ({ id: r.id, actorId: r.actor_id, action: r.action, target: r.target, details: r.details, createdAt: r.created_at });
 
-/** Throws on error. For `.maybeSingle()` the result can still be null at runtime — callers check. */
+/** Throws on error. For `.maybeSingle()` the result can still be null at runtime; callers check. */
 function check<T>({ data, error }: { data: T | null; error: { message: string } | null }): T {
   if (error) throw new Error(error.message);
   return data as T;

@@ -2,9 +2,9 @@ import Link from "next/link";
 import { canManageGroup, requireStaff } from "@/lib/auth";
 import { isGroupActive } from "@/lib/meetings";
 import { getRepo } from "@/lib/repo";
+import { GROUP_KIND_LABEL as kindLabel } from "@/lib/types";
 import { NewGroupForm } from "./new-group-form";
 
-const kindLabel = { team: "Team", leads: "Leads", event: "Event team" } as const;
 
 export default async function GroupsPage() {
   const staff = await requireStaff();
@@ -18,8 +18,8 @@ export default async function GroupsPage() {
   const list = (gs: typeof groups) => (
     <ul className="divide-y" style={{ borderColor: "var(--border)" }}>
       {gs.map((g) => (
-        <li key={g.id} className="flex items-center justify-between py-2 text-sm">
-          <Link className="underline" href={`/admin/groups/${g.id}`}>{g.name}</Link>
+        <li key={g.id} className="flex flex-wrap items-center justify-between gap-x-3 py-1 text-sm">
+          <Link className="py-2 font-medium underline" href={`/admin/groups/${g.id}`}>{g.name}</Link>
           <span className="muted">{kindLabel[g.kind]} · {count(g.id)} members{g.endsOn ? ` · until ${g.endsOn}` : ""}</span>
         </li>
       ))}

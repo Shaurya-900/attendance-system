@@ -55,13 +55,13 @@ export default async function MePage() {
         {scopes.length === 0 && <p className="muted text-sm">You&apos;re not tracked in any group yet.</p>}
       </div>
       <p className="muted text-xs">
-        {semester ? `Semester: ${semester.name}. ` : "No semester configured — counting all meetings. "}
-        Full body and each of your groups keep separate counts. Absence = 1 point, late = 0.5, approved excuse = 0.
+        {semester ? `Semester: ${semester.name}. ` : "No semester configured, so all meetings count. "}
+        Full body and each of your groups keep separate counts. An absence is 1 point; late check-ins and approved excuses are 0.
         Warning at {WARNING_AT}, review at {FLAGGED_AT}.
       </p>
 
       {excusable.length > 0 && (
-        <ExcuseForm meetings={excusable.map((m) => ({ id: m.id, label: `${m.title}${m.groupId ? ` (${groupName.get(m.groupId)})` : ""} — ${fmt(m.startsAt)}` }))} />
+        <ExcuseForm meetings={excusable.map((m) => ({ id: m.id, label: `${m.title}${m.groupId ? ` (${groupName.get(m.groupId)})` : ""}, ${fmt(m.startsAt)}` }))} />
       )}
 
       <div className="card overflow-x-auto">
@@ -76,7 +76,7 @@ export default async function MePage() {
                   <td>{m.title}</td>
                   <td><GroupBadge name={m.groupId ? groupName.get(m.groupId) : null} /></td>
                   <td>{fmt(m.startsAt)}</td>
-                  <td>{r ? <StatusBadge status={r.status} /> : <span className="muted">{m.status === "closed" ? "—" : m.status}</span>}</td>
+                  <td>{r ? <StatusBadge status={r.status} /> : <span className="muted">{m.status === "closed" ? "-" : m.status}</span>}</td>
                   <td className="capitalize">{e?.status ?? ""}</td>
                 </tr>
               );

@@ -24,10 +24,10 @@ body {
 }
 .card { background: var(--card); border: 1px solid var(--border); border-radius: 0.75rem; padding: 1rem; }
 .muted { color: var(--muted); }
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; border-radius: .5rem; padding: .5rem 1rem; font-weight: 600; background: var(--accent); color: white; }
+.btn { min-height: 2.5rem; display: inline-flex; align-items: center; justify-content: center; gap: .5rem; border-radius: .5rem; padding: .5rem 1rem; font-weight: 600; background: var(--accent); color: white; }
 .btn:disabled { opacity: .5; }
-.btn-ghost { display: inline-flex; align-items: center; border-radius: .5rem; padding: .375rem .75rem; border: 1px solid var(--border); font-weight: 500; }
-.input { width: 100%; border-radius: .5rem; border: 1px solid var(--border); background: var(--card); padding: .5rem .75rem; }
+.btn-ghost { min-height: 2.25rem; display: inline-flex; justify-content: center; gap: .25rem; align-items: center; border-radius: .5rem; padding: .375rem .75rem; border: 1px solid var(--border); font-weight: 500; }
+.input { min-height: 2.5rem; width: 100%; border-radius: .5rem; border: 1px solid var(--border); background: var(--card); padding: .5rem .75rem; }
 table.data { width: 100%; font-size: .875rem; border-collapse: collapse; }
 table.data th { text-align: left; font-weight: 600; color: var(--muted); padding: .5rem; border-bottom: 1px solid var(--border); }
 table.data td { padding: .5rem; border-bottom: 1px solid var(--border); vertical-align: top; }

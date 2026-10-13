@@ -5,7 +5,7 @@ import { getRepo } from "@/lib/repo";
 import { GoogleButton } from "./google-button";
 
 const errors: Record<string, string> = {
-  not_on_roster: "That account isn't on the E-Cell roster. Use your college email, or ask a core member to add you.",
+  not_on_roster: "That account isn't on the E-Cell members list. Use your college email, or ask a core member to add you.",
   inactive: "Your membership is inactive. Contact the core team.",
   auth_failed: "Sign-in failed. Please try again.",
   missing_code: "Sign-in failed. Please try again.",
@@ -24,7 +24,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       {error && <p className="rounded-lg bg-red-100 p-3 text-sm text-red-800">{errors[error] ?? "Something went wrong."}</p>}
       {env.backend === "memory" ? (
         <div className="card space-y-2">
-          <p className="text-sm font-semibold">Demo mode — pick a user</p>
+          <p className="text-sm font-semibold">Demo mode: pick a user</p>
           {demoUsers.map((u) => (
             <form key={u.id} action="/api/dev/login" method="post">
               <input type="hidden" name="userId" value={u.id} />

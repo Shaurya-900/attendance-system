@@ -49,7 +49,7 @@ describe("group meetings", () => {
   });
 
   it("treat event teams as ended after their end date", () => {
-    const g = { id: "g", name: "TEDx team", kind: "event" as const, endsOn: "2026-03-01", archived: false, createdAt: "" };
+    const g = { id: "g", name: "Hackathon team", kind: "event" as const, endsOn: "2026-03-01", archived: false, createdAt: "" };
     expect(isGroupActive(g, new Date("2026-02-28T06:00:00Z"))).toBe(true);
     expect(isGroupActive(g, new Date("2026-03-02T06:00:00Z"))).toBe(false);
     expect(isGroupActive({ ...g, endsOn: null, archived: true })).toBe(false);

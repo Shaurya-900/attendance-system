@@ -51,7 +51,7 @@ export function registrationOptions(user: Profile) {
     userID: new TextEncoder().encode(user.id),
     attestationType: "none",
     authenticatorSelection: {
-      // The phone's own fingerprint/face/PIN — not a roaming key or someone else's phone.
+      // The phone's own fingerprint/face/PIN, not a roaming key or someone else's phone.
       authenticatorAttachment: "platform",
       residentKey: "preferred",
       userVerification: "required",

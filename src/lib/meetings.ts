@@ -45,7 +45,7 @@ export async function closeMeeting(repo: Repo, meetingId: string, actorId: strin
 
 /**
  * A roster member who signs in for the first time gets "absent" for every meeting closed since
- * they were added to the roster — otherwise never signing in would dodge the 3-strike rule.
+ * they were added to the roster. Otherwise never signing in would dodge the 3-strike rule.
  */
 export async function backfillAbsences(repo: Repo, userId: string, rosterAddedAt: string) {
   const [meetings, records, excuses] = await Promise.all([
@@ -86,7 +86,7 @@ export interface ScopeStanding {
 
 export const scopeLabel = (s: ScopeStanding) => s.group?.name ?? "Full body";
 
-/** The scope with the most strike points — what admins should look at first. */
+/** The scope with the most strike points: what admins should look at first. */
 export function worstScope(scopes: ScopeStanding[]): ScopeStanding {
   return scopes.reduce((a, b) => (b.summary.points > a.summary.points ? b : a));
 }
@@ -132,7 +132,7 @@ export async function standings(repo: Repo): Promise<{ semester: Semester | null
   return { semester, byUser: new Map(profiles.map((p) => [p.id, scopesFor(p.id, data, semester)])) };
 }
 
-/** Same as `standings`, but only loads one member's records — used on their own page. */
+/** Same as `standings`, but only loads one member's records. Used on their own page. */
 export async function standingsForUser(repo: Repo, userId: string): Promise<{ semester: Semester | null; scopes: ScopeStanding[]; meetings: Meeting[]; attendance: Attendance[]; groups: Group[]; memberships: GroupMember[] }> {
   const [meetings, attendance, adjustments, semesters, groups, memberships] = await Promise.all([
     repo.listMeetings(), repo.listAttendanceForUser(userId), repo.listAdjustments(userId), repo.listSemesters(),

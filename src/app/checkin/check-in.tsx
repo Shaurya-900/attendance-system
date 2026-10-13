@@ -31,7 +31,7 @@ export function CheckIn({ meetingId, token }: { meetingId: string; token: string
       if (!res.ok) throw new Error(result.error);
       setState({
         kind: "done",
-        message: result.alreadyCheckedIn ? "You're already checked in." : `Checked in to ${result.meetingTitle}${result.status === "late" ? " — marked late" : ""}.`,
+        message: result.alreadyCheckedIn ? "You're already checked in." : `Checked in to ${result.meetingTitle}${result.status === "late" ? " (marked late)" : ""}.`,
       });
     } catch (e) {
       setState({ kind: "error", message: (e as Error).message || "Check-in failed." });
