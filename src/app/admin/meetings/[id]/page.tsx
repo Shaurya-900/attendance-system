@@ -27,6 +27,9 @@ export default async function MeetingPage({ params }: { params: Promise<{ id: st
         {meeting.status !== "closed" && (
           <form action={endMeeting}><input type="hidden" name="meetingId" value={id} /><button className="btn-ghost">Close meeting &amp; mark absentees</button></form>
         )}
+        {meeting.status === "closed" && members.some((p) => p.active && !recordFor.has(p.id)) && (
+          <form action={endMeeting}><input type="hidden" name="meetingId" value={id} /><button className="btn-ghost">Mark remaining absentees</button></form>
+        )}
         <a className="btn-ghost" href={`/api/admin/export?meeting=${id}`}>Export CSV</a>
       </div>
 

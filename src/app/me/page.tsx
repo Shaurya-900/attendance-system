@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { EXCUSE_WINDOW_MS, standings } from "@/lib/meetings";
 import { getRepo } from "@/lib/repo";
 import { FLAGGED_AT, WARNING_AT } from "@/lib/strikes";
-import { requestExcuse } from "./actions";
+import { ExcuseForm } from "./excuse-form";
 
 export default async function MePage() {
   const user = await requireUser("/me");
@@ -46,14 +46,7 @@ export default async function MePage() {
       </p>
 
       {excusable.length > 0 && (
-        <form action={requestExcuse} className="card space-y-2">
-          <h2 className="font-semibold">Request an excuse</h2>
-          <select name="meetingId" className="input" required>
-            {excusable.map((m) => <option key={m.id} value={m.id}>{m.title} — {fmt(m.startsAt)}</option>)}
-          </select>
-          <textarea name="reason" className="input" required minLength={5} maxLength={500} placeholder="Reason (e.g. exam, medical)" />
-          <button className="btn">Submit</button>
-        </form>
+        <ExcuseForm meetings={excusable.map((m) => ({ id: m.id, label: `${m.title} — ${fmt(m.startsAt)}` }))} />
       )}
 
       <div className="card overflow-x-auto">

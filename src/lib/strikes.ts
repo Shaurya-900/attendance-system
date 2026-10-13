@@ -51,14 +51,15 @@ export interface StrikeSummary {
  */
 export function computeStrikes(
   records: { status: AttendanceStatus; meetingStartsAt: string }[],
-  adjustments: Pick<StrikeAdjustment, "points" | "semesterId">[],
+  adjustments: (Pick<StrikeAdjustment, "points" | "semesterId"> & { createdAt?: string })[],
   semester: Semester | null,
   timeZone: string,
 ): StrikeSummary {
   const inScope = semester ? records.filter((r) => inSemester(r.meetingStartsAt, semester, timeZone)) : records;
   const count = (s: AttendanceStatus) => inScope.filter((r) => r.status === s).length;
   const adj = adjustments
-    .filter((a) => !semester || a.semesterId === semester.id)
+    // Untagged adjustments (made with no semester set, or whose semester was deleted) count by date.
+    .filter((a) => !semester || a.semesterId === semester.id || (a.semesterId === null && !!a.createdAt && inSemester(a.createdAt, semester, timeZone)))
     .reduce((sum, a) => sum + a.points, 0);
   const points = Math.max(0, inScope.reduce((sum, r) => sum + STRIKE_POINTS[r.status], 0) + adj);
   return { points, absences: count("absent"), lates: count("late"), excused: count("excused"), adjustments: adj, level: levelFor(points) };

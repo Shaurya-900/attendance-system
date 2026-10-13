@@ -2,14 +2,16 @@ import Link from "next/link";
 import { fmt, LevelBadge } from "@/components/ui";
 import { standings } from "@/lib/meetings";
 import { getRepo } from "@/lib/repo";
-import { createSemester } from "./actions";
 import { DeleteSemesterButton } from "./delete-semester-button";
+import { SemesterForm } from "./semester-form";
 
 export default async function AdminDashboard() {
   const repo = getRepo();
   const [profiles, meetings, pending, audit, semesters, { semester, byUser }] = await Promise.all([
     repo.listProfiles(), repo.listMeetings(), repo.listExcuses({ status: "pending" }), repo.listAudit(200), repo.listSemesters(), standings(repo),
   ]);
+  const joined = new Set(profiles.map((p) => p.email));
+  const notJoined = (await repo.listRoster()).filter((r) => r.role === "member" && !joined.has(r.email));
   const names = new Map(profiles.map((p) => [p.id, p.name]));
   const atRisk = profiles
     .filter((p) => p.active && p.role === "member" && byUser.get(p.id)!.level !== "ok")
@@ -44,6 +46,14 @@ export default async function AdminDashboard() {
           <p className="muted text-xs">Check-ins with device flags are also highlighted on each meeting page.</p>
         </section>
       </div>
+      {notJoined.length > 0 && (
+        <section className="card flex flex-wrap items-center justify-between gap-2 border-l-4 text-sm" style={{ borderLeftColor: "#d97706" }}>
+          <span>
+            <strong>{notJoined.length}</strong> roster member(s) haven&apos;t signed in yet. Meetings they miss are marked absent when they first sign in.
+          </span>
+          <Link href="/admin/members" className="btn-ghost">See who</Link>
+        </section>
+      )}
       <section className="card flex items-center justify-between text-sm">
         <span>{pending.length} excuse request(s) waiting</span>
         <Link href="/admin/excuses" className="btn-ghost">Review</Link>
@@ -59,12 +69,7 @@ export default async function AdminDashboard() {
             </li>
           ))}
         </ul>
-        <form action={createSemester} className="grid gap-2 sm:grid-cols-4">
-          <input name="name" className="input" placeholder="e.g. Odd sem 2026" required />
-          <input name="startsOn" type="date" className="input" required />
-          <input name="endsOn" type="date" className="input" required />
-          <button className="btn">Add semester</button>
-        </form>
+        <SemesterForm />
       </section>
     </div>
   );

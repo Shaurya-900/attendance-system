@@ -9,8 +9,10 @@ export const EXCUSE_WINDOW_MS = 24 * 60 * 60 * 1000;
 /** Close a meeting: every active member without a record becomes absent, or excused if an excuse was approved. */
 export async function closeMeeting(repo: Repo, meetingId: string, actorId: string) {
   const meeting = await repo.getMeeting(meetingId);
-  if (!meeting || meeting.status === "closed") return;
-  await repo.setMeetingStatus(meetingId, "closed");
+  if (!meeting) return;
+  // Close first so no check-in can land while absentees are written. Safe to re-run:
+  // only members with no record yet are touched, so a failed close can simply be retried.
+  if (meeting.status !== "closed") await repo.setMeetingStatus(meetingId, "closed");
   const [profiles, records, excuses] = await Promise.all([
     repo.listProfiles(),
     repo.listAttendanceForMeeting(meetingId),
@@ -26,6 +28,27 @@ export async function closeMeeting(repo: Repo, meetingId: string, actorId: strin
     await repo.upsertAttendance({ meetingId, userId: p.id, status, checkedInAt: null, credentialId: null, deviceId: null, source: "manual", flags: [] });
   }
   await repo.addAudit({ actorId, action: "meeting.close", target: meetingId, details: { present: records.length, absent } });
+}
+
+/**
+ * A roster member who signs in for the first time gets "absent" for every meeting closed since
+ * they were added to the roster — otherwise never signing in would dodge the 3-strike rule.
+ */
+export async function backfillAbsences(repo: Repo, userId: string, rosterAddedAt: string) {
+  const [meetings, records, excuses] = await Promise.all([
+    repo.listMeetings(), repo.listAttendanceForUser(userId), repo.listExcuses({ userId, status: "approved" }),
+  ]);
+  const has = new Set(records.map((r) => r.meetingId));
+  const excused = new Set(excuses.map((e) => e.meetingId));
+  const since = Date.parse(rosterAddedAt);
+  let count = 0;
+  for (const m of meetings) {
+    if (m.status !== "closed" || Date.parse(m.startsAt) < since || has.has(m.id)) continue;
+    const status = excused.has(m.id) ? "excused" : "absent";
+    await repo.upsertAttendance({ meetingId: m.id, userId, status, checkedInAt: null, credentialId: null, deviceId: null, source: "manual", flags: [] });
+    count++;
+  }
+  if (count > 0) await repo.addAudit({ actorId: null, action: "attendance.backfill", target: userId, details: { meetings: count } });
 }
 
 /** Approving an excuse after the meeting closed turns the recorded absence into "excused". */

@@ -115,19 +115,35 @@ export async function importRoster(formData: FormData) {
   if (entries.length === 0) return;
   const repo = getRepo();
   await repo.upsertRoster(entries);
+  // Keep signed-up members in sync, so e.g. promoting someone to admin takes effect.
+  const byEmail = new Map(entries.map((e) => [e.email, e]));
+  for (const p of await repo.listProfiles()) {
+    const e = byEmail.get(p.email);
+    if (!e || p.id === admin.id) continue;
+    if (e.name !== p.name || e.rollNo !== p.rollNo || e.role !== p.role) {
+      await repo.upsertProfile({ ...p, name: e.name, rollNo: e.rollNo, role: e.role });
+    }
+  }
   await repo.addAudit({ actorId: admin.id, action: "roster.import", target: null, details: { count: entries.length } });
   revalidatePath("/admin/members");
 }
 
-export async function createSemester(formData: FormData) {
+export type FormState = { error?: string; ok?: string } | null;
+
+export async function createSemester(_prev: FormState, formData: FormData): Promise<FormState> {
   const admin = await requireAdmin();
-  const input = z.object({ name: z.string().min(1), startsOn: z.string().date(), endsOn: z.string().date() })
-    .refine((s) => s.endsOn >= s.startsOn)
-    .parse({ name: str(formData, "name"), startsOn: str(formData, "startsOn"), endsOn: str(formData, "endsOn") });
+  const parsed = z.object({ name: z.string().min(1), startsOn: z.string().date(), endsOn: z.string().date() })
+    .safeParse({ name: str(formData, "name"), startsOn: str(formData, "startsOn"), endsOn: str(formData, "endsOn") });
+  if (!parsed.success) return { error: "Fill in a name and both dates." };
+  const input = parsed.data;
+  if (input.endsOn < input.startsOn) return { error: "The end date is before the start date." };
   const repo = getRepo();
+  const overlap = (await repo.listSemesters()).find((s) => s.startsOn <= input.endsOn && input.startsOn <= s.endsOn);
+  if (overlap) return { error: `Overlaps with "${overlap.name}" (${overlap.startsOn} → ${overlap.endsOn}). Delete or adjust that one first.` };
   await repo.createSemester(input);
   await repo.addAudit({ actorId: admin.id, action: "semester.create", target: null, details: input });
   revalidatePath("/admin");
+  return { ok: `Added ${input.name}.` };
 }
 
 export async function deleteSemester(formData: FormData) {

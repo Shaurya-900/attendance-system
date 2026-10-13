@@ -27,7 +27,7 @@ function seed(): Store {
     { email: "carol@ecell.test", name: "Carol Member", rollNo: "21BCE003", role: "member" },
   ];
   return {
-    roster: people,
+    roster: people.map((p) => ({ ...p, addedAt: now })),
     profiles: people.map((p, i) => ({ id: `user-${i}`, ...p, active: true, createdAt: now })),
     passkeys: [],
     meetings: [],
@@ -60,7 +60,8 @@ export const memoryRepo: Repo = {
   async upsertRoster(entries) {
     for (const e of entries) {
       const i = db().roster.findIndex((r) => r.email === e.email);
-      if (i >= 0) db().roster[i] = e; else db().roster.push(e);
+      if (i >= 0) db().roster[i] = { ...e, addedAt: db().roster[i].addedAt };
+      else db().roster.push({ ...e, addedAt: new Date().toISOString() });
     }
   },
 

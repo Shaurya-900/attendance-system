@@ -25,7 +25,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Passkey check failed: ${(e as Error).message}` }, { status: 400 });
   }
   if (newCounter === null) return NextResponse.json({ error: "Passkey check failed." }, { status: 400 });
-  await repo.updatePasskeyCounter(passkey.credentialId, newCounter);
 
   const flags: string[] = [];
   let deviceId = req.cookies.get(DEVICE_COOKIE)?.value;
@@ -45,6 +44,7 @@ export async function POST(req: NextRequest) {
     await repo.addAudit({ actorId: user.id, action: "proxy.duplicate_device", target: meeting.id, details: { deviceId } });
     return NextResponse.json({ error: "This phone was already used to check in someone else. Proxy attempts are reported to the core team." }, { status: 409 });
   }
+  if (result === "ok") await repo.updatePasskeyCounter(passkey.credentialId, newCounter);
   const res = NextResponse.json(result === "duplicate_user" ? { alreadyCheckedIn: true } : { ok: true, status, meetingTitle: meeting.title });
   setDeviceCookie(res, deviceId);
   clearChallengeCookie(res);

@@ -15,6 +15,8 @@ export interface RosterEntry {
   name: string;
   rollNo: string | null;
   role: Role;
+  /** When the person was first added to the roster; set by the database. */
+  addedAt?: string;
 }
 
 export interface Passkey {
