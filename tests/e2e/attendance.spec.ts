@@ -139,3 +139,21 @@ test("semesters: overlap is refused, delete removes the row immediately", async 
   await admin.reload();
   await expect(admin.getByText("No semesters yet.")).toBeVisible();
 });
+
+test("admin nav pages are prefetched, so clicking needs no server round trip", async ({ browser, baseURL }) => {
+  const admin = await asAdmin(await browser.newContext(), baseURL!);
+  await admin.goto("/admin");
+  await admin.waitForLoadState("networkidle");
+  await admin.waitForTimeout(500); // let background prefetches finish
+
+  const afterClick: string[] = [];
+  admin.on("request", (r) => {
+    const path = new URL(r.url()).pathname;
+    if (path === "/admin/meetings" || path === "/admin/groups") afterClick.push(r.url());
+  });
+  await admin.getByRole("link", { name: "Meetings" }).click();
+  await expect(admin.getByRole("heading", { name: "Meetings" })).toBeVisible();
+  await admin.getByRole("link", { name: "Groups" }).click();
+  await expect(admin.getByRole("heading", { name: "Groups" })).toBeVisible();
+  expect(afterClick).toEqual([]);
+});
