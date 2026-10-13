@@ -1,19 +1,29 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { requireStaff } from "@/lib/auth";
 import { fmt, LevelBadge } from "@/components/ui";
-import { standings } from "@/lib/meetings";
+import { scopeLabel, standings } from "@/lib/meetings";
 import { getRepo } from "@/lib/repo";
-import { createSemester } from "./actions";
 import { DeleteSemesterButton } from "./delete-semester-button";
+import { SemesterForm } from "./semester-form";
 
 export default async function AdminDashboard() {
+  const staff = await requireStaff();
+  if (!staff.isAdmin) redirect("/admin/meetings");
   const repo = getRepo();
   const [profiles, meetings, pending, audit, semesters, { semester, byUser }] = await Promise.all([
     repo.listProfiles(), repo.listMeetings(), repo.listExcuses({ status: "pending" }), repo.listAudit(200), repo.listSemesters(), standings(repo),
   ]);
+  const joined = new Set(profiles.map((p) => p.email));
+  const notJoined = (await repo.listRoster()).filter((r) => r.role === "member" && !joined.has(r.email));
   const names = new Map(profiles.map((p) => [p.id, p.name]));
+  // One row per member per strike count (full body or a group) that is at warning or worse.
   const atRisk = profiles
-    .filter((p) => p.active && p.role === "member" && byUser.get(p.id)!.level !== "ok")
-    .sort((a, b) => byUser.get(b.id)!.points - byUser.get(a.id)!.points);
+    .filter((p) => p.active)
+    .flatMap((p) => (byUser.get(p.id) ?? [])
+      .filter((s) => s.summary.level !== "ok" && (s.group || p.role === "member"))
+      .map((s) => ({ p, s })))
+    .sort((a, b) => b.s.summary.points - a.s.summary.points);
   const proxyEvents = audit.filter((a) => a.action.startsWith("proxy.")).slice(0, 10);
   const live = meetings.filter((m) => m.status === "live");
 
@@ -29,9 +39,10 @@ export default async function AdminDashboard() {
         <section className="card space-y-2">
           <h2 className="font-semibold">Members at risk {semester && <span className="muted text-xs">({semester.name})</span>}</h2>
           {atRisk.length === 0 && <p className="muted text-sm">Everyone is in good standing.</p>}
-          {atRisk.map((p) => (
-            <div key={p.id} className="flex items-center justify-between text-sm">
-              <span>{p.name}</span><LevelBadge level={byUser.get(p.id)!.level} points={byUser.get(p.id)!.points} />
+          {atRisk.map(({ p, s }) => (
+            <div key={`${p.id}:${s.group?.id ?? "all"}`} className="flex items-center justify-between gap-2 text-sm">
+              <span>{p.name} <span className="muted text-xs">· {scopeLabel(s)}</span></span>
+              <LevelBadge level={s.summary.level} points={s.summary.points} />
             </div>
           ))}
         </section>
@@ -44,6 +55,14 @@ export default async function AdminDashboard() {
           <p className="muted text-xs">Check-ins with device flags are also highlighted on each meeting page.</p>
         </section>
       </div>
+      {notJoined.length > 0 && (
+        <section className="card flex flex-wrap items-center justify-between gap-2 border-l-4 text-sm" style={{ borderLeftColor: "#d97706" }}>
+          <span>
+            <strong>{notJoined.length}</strong> roster member(s) haven&apos;t signed in yet. Meetings they miss are marked absent when they first sign in.
+          </span>
+          <Link href="/admin/members" className="btn-ghost">See who</Link>
+        </section>
+      )}
       <section className="card flex items-center justify-between text-sm">
         <span>{pending.length} excuse request(s) waiting</span>
         <Link href="/admin/excuses" className="btn-ghost">Review</Link>
@@ -59,12 +78,7 @@ export default async function AdminDashboard() {
             </li>
           ))}
         </ul>
-        <form action={createSemester} className="grid gap-2 sm:grid-cols-4">
-          <input name="name" className="input" placeholder="e.g. Odd sem 2026" required />
-          <input name="startsOn" type="date" className="input" required />
-          <input name="endsOn" type="date" className="input" required />
-          <button className="btn">Add semester</button>
-        </form>
+        <SemesterForm />
       </section>
     </div>
   );

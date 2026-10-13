@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import type {
-  Attendance, AuditEntry, Excuse, Meeting, Passkey, Profile, RosterEntry, Semester, StrikeAdjustment,
+  Attendance, AuditEntry, Excuse, Group, GroupMember, Meeting, Passkey, Profile, RosterEntry, Semester, StrikeAdjustment,
 } from "../types";
 import type { Repo } from "./types";
 
@@ -14,6 +14,8 @@ interface Store {
   excuses: Excuse[];
   semesters: Semester[];
   adjustments: StrikeAdjustment[];
+  groups: Group[];
+  groupMembers: GroupMember[];
   audit: AuditEntry[];
 }
 
@@ -27,7 +29,7 @@ function seed(): Store {
     { email: "carol@ecell.test", name: "Carol Member", rollNo: "21BCE003", role: "member" },
   ];
   return {
-    roster: people,
+    roster: people.map((p) => ({ ...p, addedAt: now })),
     profiles: people.map((p, i) => ({ id: `user-${i}`, ...p, active: true, createdAt: now })),
     passkeys: [],
     meetings: [],
@@ -35,6 +37,8 @@ function seed(): Store {
     excuses: [],
     semesters: [{ id: "sem-demo", name: `${year} (demo)`, startsOn: `${year}-01-01`, endsOn: `${year}-12-31` }],
     adjustments: [],
+    groups: [],
+    groupMembers: [],
     audit: [],
   };
 }
@@ -60,7 +64,8 @@ export const memoryRepo: Repo = {
   async upsertRoster(entries) {
     for (const e of entries) {
       const i = db().roster.findIndex((r) => r.email === e.email);
-      if (i >= 0) db().roster[i] = e; else db().roster.push(e);
+      if (i >= 0) db().roster[i] = { ...e, addedAt: db().roster[i].addedAt };
+      else db().roster.push({ ...e, addedAt: new Date().toISOString() });
     }
   },
 
@@ -116,6 +121,24 @@ export const memoryRepo: Repo = {
 
   async listAdjustments(userId) { return clone(db().adjustments.filter((a) => !userId || a.userId === userId)); },
   async addAdjustment(input) { db().adjustments.push({ id: randomUUID(), ...input, createdAt: new Date().toISOString() }); },
+
+  async listGroups() { return clone([...db().groups].sort((a, b) => a.name.localeCompare(b.name))); },
+  async getGroup(id) { return clone(db().groups.find((g) => g.id === id) ?? null); },
+  async createGroup(input) {
+    const g: Group = { id: randomUUID(), ...input, archived: false, createdAt: new Date().toISOString() };
+    db().groups.push(g);
+    return clone(g);
+  },
+  async updateGroup(id, patch) { const g = db().groups.find((x) => x.id === id); if (g) Object.assign(g, patch); },
+  async listGroupMembers(groupId) { return clone(db().groupMembers.filter((m) => !groupId || m.groupId === groupId)); },
+  async setGroupMember(groupId, userId, role) {
+    const m = db().groupMembers.find((x) => x.groupId === groupId && x.userId === userId);
+    if (m) m.role = role;
+    else db().groupMembers.push({ groupId, userId, role, addedAt: new Date().toISOString() });
+  },
+  async removeGroupMember(groupId, userId) {
+    db().groupMembers = db().groupMembers.filter((m) => !(m.groupId === groupId && m.userId === userId));
+  },
 
   async addAudit(input) { db().audit.unshift({ id: randomUUID(), ...input, createdAt: new Date().toISOString() }); },
   async listAudit(limit) { return clone(db().audit.slice(0, limit)); },

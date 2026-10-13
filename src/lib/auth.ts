@@ -43,3 +43,27 @@ export function emailDomainAllowed(email: string): boolean {
   const domain = env.allowedEmailDomain;
   return !domain || email.toLowerCase().endsWith(`@${domain}`);
 }
+
+export interface StaffContext {
+  user: Profile;
+  isAdmin: boolean;
+  /** Groups this user leads (all groups for admins are implied by isAdmin). */
+  ledGroupIds: Set<string>;
+}
+
+/** Admins, or members who lead at least one group. Leads only get their own groups' meetings. */
+export async function getStaff(user: Profile): Promise<StaffContext> {
+  const memberships = await getRepo().listGroupMembers();
+  const ledGroupIds = new Set(memberships.filter((m) => m.userId === user.id && m.role === "lead").map((m) => m.groupId));
+  return { user, isAdmin: user.role === "admin", ledGroupIds };
+}
+
+export async function requireStaff(next = "/admin"): Promise<StaffContext> {
+  const staff = await getStaff(await requireUser(next));
+  if (!staff.isAdmin && staff.ledGroupIds.size === 0) redirect("/me");
+  return staff;
+}
+
+export function canManageGroup(staff: StaffContext, groupId: string | null): boolean {
+  return staff.isAdmin || (!!groupId && staff.ledGroupIds.has(groupId));
+}

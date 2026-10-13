@@ -15,6 +15,8 @@ export interface RosterEntry {
   name: string;
   rollNo: string | null;
   role: Role;
+  /** When the person was first added to the roster; set by the database. */
+  addedAt?: string;
 }
 
 export interface Passkey {
@@ -36,6 +38,8 @@ export interface Meeting {
   graceMinutes: number;
   status: MeetingStatus;
   qrSecret: string;
+  /** null = full-body meeting; otherwise only this group's members are expected. */
+  groupId: string | null;
   createdBy: string | null;
   createdAt: string;
 }
@@ -77,6 +81,8 @@ export interface StrikeAdjustment {
   id: string;
   userId: string;
   semesterId: string | null;
+  /** null = full-body strike count; otherwise that group's count. */
+  groupId: string | null;
   points: number;
   reason: string;
   createdBy: string;
@@ -90,4 +96,22 @@ export interface AuditEntry {
   target: string | null;
   details: Record<string, unknown>;
   createdAt: string;
+}
+
+export type GroupKind = "team" | "leads" | "event";
+
+export interface Group {
+  id: string;
+  name: string;
+  kind: GroupKind;
+  endsOn: string | null; // YYYY-MM-DD; event teams stop being active after this
+  archived: boolean;
+  createdAt: string;
+}
+
+export interface GroupMember {
+  groupId: string;
+  userId: string;
+  role: "member" | "lead";
+  addedAt: string;
 }

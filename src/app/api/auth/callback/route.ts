@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { emailDomainAllowed, safeNext } from "@/lib/auth";
+import { backfillAbsences } from "@/lib/meetings";
 import { getRepo } from "@/lib/repo";
 import { createSessionClient } from "@/lib/supabase/server";
 
@@ -17,7 +18,8 @@ export async function GET(req: NextRequest) {
 
   const repo = getRepo();
   const [roster, existing] = await Promise.all([repo.getRosterEntry(email), repo.getProfile(data.user.id)]);
-  if (!emailDomainAllowed(email) || (!roster && !existing)) {
+  // Removed from the roster = no access (admins excepted, so nobody locks themselves out).
+  if (!emailDomainAllowed(email) || (!roster && existing?.role !== "admin")) {
     await supabase.auth.signOut();
     return fail("not_on_roster");
   }
@@ -27,6 +29,7 @@ export async function GET(req: NextRequest) {
   }
   if (!existing) {
     await repo.upsertProfile({ id: data.user.id, email, name: roster!.name, rollNo: roster!.rollNo, role: roster!.role, active: true });
+    if (roster!.role === "member" && roster!.addedAt) await backfillAbsences(repo, data.user.id, roster!.addedAt);
   }
   const passkey = await repo.getPasskeyByUser(data.user.id);
   return NextResponse.redirect(new URL(passkey ? next : `/onboard?next=${encodeURIComponent(next)}`, url.origin));

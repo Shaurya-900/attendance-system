@@ -19,6 +19,13 @@ export async function POST(req: NextRequest) {
   if (!verifyToken(meeting.id, meeting.qrSecret, body.data.token)) {
     return NextResponse.json({ error: "QR code expired. Scan the code on the screen again." }, { status: 400 });
   }
+  if (meeting.groupId) {
+    const members = await repo.listGroupMembers(meeting.groupId);
+    if (!members.some((m) => m.userId === user.id)) {
+      const group = await repo.getGroup(meeting.groupId);
+      return NextResponse.json({ error: `This meeting is only for ${group?.name ?? "a specific group"}.` }, { status: 403 });
+    }
+  }
   const existing = (await repo.listAttendanceForMeeting(meeting.id)).find((a) => a.userId === user.id);
   if (existing) return NextResponse.json({ alreadyCheckedIn: true, status: existing.status });
 

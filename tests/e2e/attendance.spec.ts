@@ -77,3 +77,48 @@ test("proxy-proof check-in flow", async ({ browser, baseURL }) => {
   await admin.goto("/admin");
   await expect(admin.getByText("register shared device")).toBeVisible();
 });
+
+test("group meetings only admit group members and keep their own strikes", async ({ browser, baseURL }) => {
+  const admin = await asAdmin(await browser.newContext(), baseURL!);
+
+  // Admin creates a Leads group with Alice in it.
+  await admin.goto("/admin/groups");
+  await admin.getByPlaceholder(/e\.g\. Leads/).fill("Leads");
+  await admin.getByLabel("Type").selectOption("leads");
+  await admin.getByRole("button", { name: "Create" }).click();
+  await expect(admin.getByRole("heading", { name: "Leads" })).toBeVisible();
+  await admin.getByLabel(/Alice Member/).check();
+  await admin.getByRole("button", { name: "Add to group" }).click();
+  await expect(admin.getByRole("status")).toContainText("Added 1 member");
+
+  // Leads meeting.
+  await admin.goto("/admin/meetings");
+  await admin.getByPlaceholder("Meeting title").fill("Leads sync");
+  await admin.getByLabel("For").selectOption({ label: "Leads" });
+  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+  await admin.getByLabel("Starts at").fill(`${today}T00:00`);
+  await admin.getByRole("button", { name: "Create" }).click();
+  await admin.getByRole("button", { name: "Start check-in" }).click();
+  const qr = admin.getByAltText("Check-in QR code");
+  await expect(qr).toBeVisible();
+  await expect(admin.getByTestId("live-count")).toHaveText("0 / 1");
+  const qrUrl = new URL((await qr.getAttribute("data-qr-url"))!);
+
+  // Carol (not in Leads) registers her own phone, then is refused.
+  const carolPhone = await (await browser.newContext()).newPage();
+  await addFingerprint(carolPhone);
+  await devLogin(carolPhone, "Carol");
+  await carolPhone.getByRole("button", { name: "Register this phone" }).click();
+  await expect(carolPhone).toHaveURL(/\/me/);
+  await carolPhone.goto(qrUrl.pathname + qrUrl.search);
+  await carolPhone.getByRole("button", { name: "Check in" }).click();
+  await expect(carolPhone.locator("p[role=alert]")).toContainText("only for Leads");
+
+  // Closing marks only Alice (the one group member) absent, under the Leads count.
+  await admin.getByRole("link", { name: "Manage meeting" }).click();
+  await admin.getByRole("button", { name: /Close meeting/ }).click();
+  await expect(admin.getByRole("row", { name: /Alice Member/ })).toContainText("absent");
+  await expect(admin.getByRole("row", { name: /Carol Member/ })).toHaveCount(0);
+  await admin.goto("/admin/members");
+  await expect(admin.getByRole("row", { name: /Alice Member/ })).toContainText("Leads:");
+});

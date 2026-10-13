@@ -5,7 +5,7 @@ import { memoryRepo as repo } from "@/lib/repo/memory";
 describe("closing a meeting", () => {
   it("marks non-attendees absent, approved excuses excused, and leaves check-ins alone", async () => {
     const [, alice, bob, carol] = await repo.listProfiles();
-    const m = await repo.createMeeting({ title: "Weekly", startsAt: new Date().toISOString(), graceMinutes: 10, createdBy: "user-0" });
+    const m = await repo.createMeeting({ title: "Weekly", startsAt: new Date().toISOString(), graceMinutes: 10, groupId: null, createdBy: "user-0" });
     await repo.setMeetingStatus(m.id, "live");
     await repo.insertAttendance({ meetingId: m.id, userId: alice.id, status: "present", checkedInAt: new Date().toISOString(), credentialId: "c", deviceId: "d1", source: "qr", flags: [] });
     const ex = await repo.createExcuse({ meetingId: m.id, userId: bob.id, reason: "Exam" });
@@ -26,7 +26,7 @@ describe("closing a meeting", () => {
 
   it("rejects a second QR check-in from the same device", async () => {
     const [, alice, bob] = await repo.listProfiles();
-    const m = await repo.createMeeting({ title: "Proxy test", startsAt: new Date().toISOString(), graceMinutes: 10, createdBy: "user-0" });
+    const m = await repo.createMeeting({ title: "Proxy test", startsAt: new Date().toISOString(), graceMinutes: 10, groupId: null, createdBy: "user-0" });
     const base = { meetingId: m.id, status: "present" as const, checkedInAt: null, credentialId: null, source: "qr" as const, flags: [] };
     expect(await repo.insertAttendance({ ...base, userId: alice.id, deviceId: "phone-1" })).toBe("ok");
     expect(await repo.insertAttendance({ ...base, userId: bob.id, deviceId: "phone-1" })).toBe("duplicate_device");
