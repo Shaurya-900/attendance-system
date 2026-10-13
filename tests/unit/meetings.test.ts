@@ -33,3 +33,11 @@ describe("closing a meeting", () => {
     expect(await repo.insertAttendance({ ...base, userId: alice.id, deviceId: "phone-2" })).toBe("duplicate_user");
   });
 });
+
+describe("semesters", () => {
+  it("can be deleted", async () => {
+    const s = await repo.createSemester({ name: "Dupe", startsOn: "2026-07-01", endsOn: "2026-12-31" });
+    await repo.deleteSemester(s.id);
+    expect((await repo.listSemesters()).some((x) => x.id === s.id)).toBe(false);
+  });
+});

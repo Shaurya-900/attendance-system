@@ -112,6 +112,8 @@ export const memoryRepo: Repo = {
   async listSemesters() { return clone(db().semesters); },
   async createSemester(input) { const s = { id: randomUUID(), ...input }; db().semesters.push(s); return clone(s); },
 
+  async deleteSemester(id) { db().semesters = db().semesters.filter((s) => s.id !== id); },
+
   async listAdjustments(userId) { return clone(db().adjustments.filter((a) => !userId || a.userId === userId)); },
   async addAdjustment(input) { db().adjustments.push({ id: randomUUID(), ...input, createdAt: new Date().toISOString() }); },
 

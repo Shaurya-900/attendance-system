@@ -87,6 +87,8 @@ export const supabaseRepo: Repo = {
     return toSemester(check(await sb().from("semesters").insert({ name: input.name, starts_on: input.startsOn, ends_on: input.endsOn }).select().single()));
   },
 
+  async deleteSemester(id) { check(await sb().from("semesters").delete().eq("id", id)); },
+
   async listAdjustments(userId) {
     let q = sb().from("strike_adjustments").select().order("created_at", { ascending: false });
     if (userId) q = q.eq("user_id", userId);
