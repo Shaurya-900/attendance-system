@@ -55,3 +55,14 @@ describe("group meetings", () => {
     expect(isGroupActive({ ...g, endsOn: null, archived: true })).toBe(false);
   });
 });
+
+describe("standingsForUser", () => {
+  it("matches the full standings for that member", async () => {
+    const { standingsForUser } = await import("@/lib/meetings");
+    for (const p of await repo.listProfiles()) {
+      const all = (await standings(repo)).byUser.get(p.id)!;
+      const mine = (await standingsForUser(repo, p.id)).scopes;
+      expect(mine).toEqual(all);
+    }
+  });
+});
