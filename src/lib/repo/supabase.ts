@@ -140,6 +140,22 @@ export const supabaseRepo: Repo = {
   },
   async removeGroupMember(groupId, userId) { check(await sb().from("group_members").delete().eq("group_id", groupId).eq("user_id", userId)); },
 
+  async deleteGroup(id) {
+    // Meetings would otherwise fall back to "full body" (group_id set null); attendance and excuses cascade.
+    check(await sb().from("meetings").delete().eq("group_id", id));
+    check(await sb().from("strike_adjustments").delete().eq("group_id", id));
+    check(await sb().from("groups").delete().eq("id", id));
+  },
+  async deleteMember(userId) {
+    const r = check<Row | null>(await sb().from("profiles").select("email").eq("id", userId).maybeSingle());
+    // Deleting the auth user cascades to the profile and everything that references it.
+    const { error } = await sb().auth.admin.deleteUser(userId);
+    if (error && !/not found/i.test(error.message)) throw new Error(error.message);
+    check(await sb().from("profiles").delete().eq("id", userId));
+    if (r?.email) check(await sb().from("roster").delete().eq("email", r.email));
+  },
+  async deleteRosterEntry(email) { check(await sb().from("roster").delete().eq("email", email.toLowerCase())); },
+
   async addAudit(input) { check(await sb().from("audit_log").insert({ actor_id: input.actorId, action: input.action, target: input.target, details: input.details })); },
   async listAudit(limit) { return check(await sb().from("audit_log").select().order("created_at", { ascending: false }).limit(limit)).map(toAudit); },
 };

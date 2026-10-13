@@ -53,6 +53,11 @@ export interface Repo {
   listGroupMembers(groupId?: string): Promise<GroupMember[]>;
   setGroupMember(groupId: string, userId: string, role: GroupMember["role"]): Promise<void>;
   removeGroupMember(groupId: string, userId: string): Promise<void>;
+  /** Deletes the group together with its meetings and their attendance and excuses. */
+  deleteGroup(id: string): Promise<void>;
+  /** Deletes a member's login, profile and all their records, and removes them from the members list. */
+  deleteMember(userId: string): Promise<void>;
+  deleteRosterEntry(email: string): Promise<void>;
 
   addAudit(input: Omit<AuditEntry, "id" | "createdAt">): Promise<void>;
   listAudit(limit: number): Promise<AuditEntry[]>;

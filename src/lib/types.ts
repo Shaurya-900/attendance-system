@@ -85,7 +85,7 @@ export interface StrikeAdjustment {
   groupId: string | null;
   points: number;
   reason: string;
-  createdBy: string;
+  createdBy: string | null;
   createdAt: string;
 }
 

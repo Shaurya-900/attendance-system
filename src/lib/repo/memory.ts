@@ -140,6 +140,29 @@ export const memoryRepo: Repo = {
     db().groupMembers = db().groupMembers.filter((m) => !(m.groupId === groupId && m.userId === userId));
   },
 
+  async deleteGroup(id) {
+    const s = db();
+    const meetingIds = new Set(s.meetings.filter((m) => m.groupId === id).map((m) => m.id));
+    s.meetings = s.meetings.filter((m) => !meetingIds.has(m.id));
+    s.attendance = s.attendance.filter((a) => !meetingIds.has(a.meetingId));
+    s.excuses = s.excuses.filter((e) => !meetingIds.has(e.meetingId));
+    s.adjustments = s.adjustments.filter((a) => a.groupId !== id);
+    s.groupMembers = s.groupMembers.filter((m) => m.groupId !== id);
+    s.groups = s.groups.filter((g) => g.id !== id);
+  },
+  async deleteMember(userId) {
+    const s = db();
+    const email = s.profiles.find((p) => p.id === userId)?.email;
+    s.profiles = s.profiles.filter((p) => p.id !== userId);
+    s.passkeys = s.passkeys.filter((p) => p.userId !== userId);
+    s.attendance = s.attendance.filter((a) => a.userId !== userId);
+    s.excuses = s.excuses.filter((e) => e.userId !== userId);
+    s.adjustments = s.adjustments.filter((a) => a.userId !== userId).map((a) => (a.createdBy === userId ? { ...a, createdBy: null } : a));
+    s.groupMembers = s.groupMembers.filter((m) => m.userId !== userId);
+    if (email) s.roster = s.roster.filter((r) => r.email !== email);
+  },
+  async deleteRosterEntry(email) { db().roster = db().roster.filter((r) => r.email !== email.toLowerCase()); },
+
   async addAudit(input) { db().audit.unshift({ id: randomUUID(), ...input, createdAt: new Date().toISOString() }); },
   async listAudit(limit) { return clone(db().audit.slice(0, limit)); },
 };

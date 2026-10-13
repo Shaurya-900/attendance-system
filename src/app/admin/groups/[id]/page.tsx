@@ -4,7 +4,8 @@ import { canManageGroup, requireStaff } from "@/lib/auth";
 import { isGroupActive, standings } from "@/lib/meetings";
 import { getRepo } from "@/lib/repo";
 import { GROUP_KIND_LABEL } from "@/lib/types";
-import { removeGroupMember, setGroupArchived, setGroupRole } from "../../actions";
+import { ConfirmForm } from "@/components/confirm-form";
+import { deleteGroup, removeGroupMember, setGroupArchived, setGroupRole } from "../../actions";
 import { AddMembersForm } from "./add-members-form";
 
 export default async function GroupPage({ params }: { params: Promise<{ id: string }> }) {
@@ -34,11 +35,19 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
           {!isGroupActive(group) ? " · archived" : ""}
         </span>
         {staff.isAdmin && (
-          <form action={setGroupArchived} className="ml-auto">
-            <input type="hidden" name="groupId" value={id} />
-            <input type="hidden" name="archived" value={String(!group.archived)} />
-            <button className="btn-ghost text-xs">{group.archived ? "Unarchive" : "Archive"}</button>
-          </form>
+          <div className="ml-auto flex gap-2">
+            <form action={setGroupArchived}>
+              <input type="hidden" name="groupId" value={id} />
+              <input type="hidden" name="archived" value={String(!group.archived)} />
+              <button className="btn-ghost text-xs">{group.archived ? "Unarchive" : "Archive"}</button>
+            </form>
+            <ConfirmForm
+              action={deleteGroup}
+              fields={{ groupId: id }}
+              label="Delete group"
+              confirm={`Delete "${group.name}"? This also deletes its meetings and their attendance and strikes. It can't be undone. To keep the history, use Archive instead.`}
+            />
+          </div>
         )}
       </div>
 
