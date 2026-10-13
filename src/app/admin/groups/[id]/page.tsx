@@ -3,6 +3,7 @@ import { LevelBadge } from "@/components/ui";
 import { canManageGroup, requireStaff } from "@/lib/auth";
 import { isGroupActive, standings } from "@/lib/meetings";
 import { getRepo } from "@/lib/repo";
+import { GROUP_KIND_LABEL } from "@/lib/types";
 import { removeGroupMember, setGroupArchived, setGroupRole } from "../../actions";
 import { AddMembersForm } from "./add-members-form";
 
@@ -28,7 +29,7 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-2xl font-bold">{group.name}</h1>
         <span className="muted text-sm">
-          {group.kind === "event" ? "Event team" : group.kind === "leads" ? "Leads" : "Team"}
+          {GROUP_KIND_LABEL[group.kind]}
           {group.endsOn ? ` · until ${group.endsOn}` : ""}
           {!isGroupActive(group) ? " · archived" : ""}
         </span>

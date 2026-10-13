@@ -98,7 +98,14 @@ export interface AuditEntry {
   createdAt: string;
 }
 
-export type GroupKind = "team" | "leads" | "event";
+export type GroupKind = "team" | "committee" | "leads" | "event";
+
+export const GROUP_KIND_LABEL: Record<GroupKind, string> = {
+  team: "Team",
+  committee: "Committee",
+  leads: "Leads",
+  event: "Event team",
+};
 
 export interface Group {
   id: string;

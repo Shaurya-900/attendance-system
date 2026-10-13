@@ -32,7 +32,7 @@ Closing a meeting marks every active member who didn't check in as absent (or ex
 
 ## Groups (teams, leads, event teams)
 
-Besides full-body meetings, admins can create **groups** under **Admin → Groups**: a vertical team, a leads group, or a temporary event team with an end date.
+Besides full-body meetings, admins can create as many **groups** as needed under **Admin → Groups**: vertical teams (Marketing, Tech, …), committees (core, sub-core), a leads group, or temporary event teams with an end date.
 
 - A meeting can be for **Full body** or for one group. Only that group's members are expected, can check in, or get marked absent.
 - **Each group keeps its own 3-strike count**, separate from full body. A member sees one card per count on *My attendance*.

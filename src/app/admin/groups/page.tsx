@@ -2,9 +2,9 @@ import Link from "next/link";
 import { canManageGroup, requireStaff } from "@/lib/auth";
 import { isGroupActive } from "@/lib/meetings";
 import { getRepo } from "@/lib/repo";
+import { GROUP_KIND_LABEL as kindLabel } from "@/lib/types";
 import { NewGroupForm } from "./new-group-form";
 
-const kindLabel = { team: "Team", leads: "Leads", event: "Event team" } as const;
 
 export default async function GroupsPage() {
   const staff = await requireStaff();

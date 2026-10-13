@@ -157,3 +157,22 @@ test("admin nav pages are prefetched, so clicking needs no server round trip", a
   await expect(admin.getByRole("heading", { name: "Groups" })).toBeVisible();
   expect(afterClick).toEqual([]);
 });
+
+test("several groups can be created and all show up straight away", async ({ browser, baseURL }) => {
+  const admin = await asAdmin(await browser.newContext(), baseURL!);
+  const names = ["Marketing team", "Core committee", "Sub-core committee", "Hackathon 2026 team"];
+  await admin.goto("/admin/groups");
+  for (const name of names) {
+    await admin.getByRole("link", { name: "Groups" }).click();
+    await admin.waitForURL(/\/admin\/groups$/);
+    await admin.getByPlaceholder(/e\.g\. Leads/).filter({ visible: true }).fill(name);
+    if (name.includes("committee")) await admin.getByLabel("Type").filter({ visible: true }).selectOption("committee");
+    await admin.getByRole("button", { name: "Create" }).click();
+    await expect(admin.getByRole("heading", { name, exact: true })).toBeVisible();
+  }
+  await admin.getByRole("link", { name: "Groups" }).click();
+  for (const name of names) await expect(admin.getByRole("link", { name, exact: true })).toBeVisible();
+  await admin.getByRole("link", { name: "Meetings" }).click();
+  const options = await admin.getByLabel("For").locator("option").allTextContents();
+  for (const name of names) expect(options).toContain(name);
+});
