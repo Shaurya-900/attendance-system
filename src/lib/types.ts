@@ -98,13 +98,20 @@ export interface AuditEntry {
   createdAt: string;
 }
 
-export type GroupKind = "team" | "committee" | "leads" | "event";
+export type GroupKind = "team" | "core" | "leads" | "event";
 
 export const GROUP_KIND_LABEL: Record<GroupKind, string> = {
   team: "Team",
-  committee: "Committee",
-  leads: "Leads",
+  core: "Core",
+  leads: "Leads (sub-core)",
   event: "Event team",
+};
+
+export const GROUP_KIND_HELP: Record<GroupKind, string> = {
+  team: "A working team, e.g. Marketing, Tech or Design, with its own meetings.",
+  core: "The core team.",
+  leads: "All the leads (sub-core) together, for leads meetings.",
+  event: "A temporary team for one event. Give it an end date and it is archived afterwards.",
 };
 
 export interface Group {

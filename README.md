@@ -23,7 +23,7 @@ Proxy-proof attendance for E-Cell meetings with a 3-strike rule. Mobile-first we
 
 ## 3-strike rule
 
-- Unexcused absence = **1** point, late (after the meeting's grace period, default 10 min) = **0.5**, approved excuse = **0**.
+- Unexcused absence = **1** point. Late check-ins are recorded but **not penalised**. Approved excuse = **0**.
 - **2** points → warning to the member; **3** → flagged on the admin dashboard for review (admins decide whether to deactivate).
 - Points reset each semester (admins set semester dates). Admins can adjust points with a reason. Overrides, resets and proxy attempts go to an audit log.
 - Members can request an excuse up to 24 h after a meeting starts.
@@ -32,7 +32,7 @@ Closing a meeting marks every active member who didn't check in as absent (or ex
 
 ## Groups (teams, leads, event teams)
 
-Besides full-body meetings, admins can create as many **groups** as needed under **Admin → Groups**: vertical teams (Marketing, Tech, …), committees (core, sub-core), a leads group, or temporary event teams with an end date.
+Besides full-body meetings, admins can create as many **groups** as needed under **Admin → Groups**: teams (Marketing, Tech, Design, …), the core team, a leads group (sub-core), or temporary event teams with an end date.
 
 - A meeting can be for **Full body** or for one group. Only that group's members are expected, can check in, or get marked absent.
 - **Each group keeps its own 3-strike count**, separate from full body. A member sees one card per count on *My attendance*.
@@ -49,7 +49,7 @@ Besides full-body meetings, admins can create as many **groups** as needed under
    insert into roster (email, name, roll_no, role) values ('you@yourcollege.edu', 'Your Name', 'XYZ', 'admin');
    ```
    Then import the other members from **Admin → Members** (`email,name,roll_no` per line).
-4. Copy `.env.example` to `.env.local` and fill it in. `WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGIN` must match the deployed domain exactly (passkeys are bound to it — don't change domains later without resetting passkeys).
+4. Copy `.env.example` to `.env.local` and fill it in. `WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGIN` must match the deployed domain exactly (passkeys are bound to it, so don't change domains later without resetting passkeys).
 5. Deploy to Vercel with the same environment variables. Passkeys need HTTPS (Vercel provides it).
 
 ## Local development
@@ -66,9 +66,9 @@ Demo mode (`DATA_BACKEND=memory`) has a fake sign-in and loses data on restart. 
 
 ## Code map
 
-- `src/lib/qr-token.ts` — rotating HMAC token for the projected QR
-- `src/lib/webauthn.ts`, `src/lib/device.ts` — passkey registration/verification, device binding
-- `src/lib/strikes.ts`, `src/lib/meetings.ts` — strike rules, semester handling, closing meetings
-- `src/lib/repo/` — data access (`supabase.ts` for production, `memory.ts` for demo/tests)
-- `src/app/api/checkin/*` — check-in: validate QR → issue passkey challenge → verify → record
-- `src/app/admin/*` — dashboard, meetings + projector view, members, excuses
+- `src/lib/qr-token.ts`: rotating HMAC token for the projected QR
+- `src/lib/webauthn.ts`, `src/lib/device.ts`: passkey registration/verification, device binding
+- `src/lib/strikes.ts`, `src/lib/meetings.ts`: strike rules, semester handling, closing meetings
+- `src/lib/repo/`: data access (`supabase.ts` for production, `memory.ts` for demo/tests)
+- `src/app/api/checkin/*`: check-in: validate QR → issue passkey challenge → verify → record
+- `src/app/admin/*`: dashboard, meetings + projector view, members, excuses

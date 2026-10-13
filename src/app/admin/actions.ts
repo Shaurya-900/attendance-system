@@ -9,7 +9,7 @@ function refreshAll() {
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { canManageGroup, requireAdmin, requireStaff } from "@/lib/auth";
-import { applyApprovedExcuse, closeMeeting } from "@/lib/meetings";
+import { applyApprovedExcuse, closeMeeting, expectedMembers } from "@/lib/meetings";
 import { getRepo } from "@/lib/repo";
 import type { AttendanceStatus, Meeting, Role } from "@/lib/types";
 
@@ -38,7 +38,13 @@ export async function createMeeting(formData: FormData) {
     startsAt: z.string().datetime({ offset: true }),
     graceMinutes: z.coerce.number().int().min(0).max(120),
   }).parse({ title: str(formData, "title"), startsAt: str(formData, "startsAt"), graceMinutes: str(formData, "graceMinutes") || 10 });
-  const meeting = await getRepo().createMeeting({ ...input, groupId, createdBy: staff.user.id });
+  const repo = getRepo();
+  // A double click (or a retry on a slow connection) must not create the same meeting twice.
+  const recent = Date.now() - 60_000;
+  const duplicate = (await repo.listMeetings()).find((m) =>
+    m.title === input.title && Date.parse(m.startsAt) === Date.parse(input.startsAt) && m.groupId === groupId &&
+    m.createdBy === staff.user.id && Date.parse(m.createdAt) > recent);
+  const meeting = duplicate ?? await repo.createMeeting({ ...input, startsAt: new Date(input.startsAt).toISOString(), groupId, createdBy: staff.user.id });
   refreshAll();
   redirect(`/admin/meetings/${meeting.id}`);
 }
@@ -127,7 +133,7 @@ export async function setActive(formData: FormData) {
   refreshAll();
 }
 
-/** CSV lines: email,name,roll_no[,role] — header row optional. */
+/** CSV lines: email,name,roll_no[,role]; a header row is optional. */
 export async function importRoster(formData: FormData) {
   const admin = await requireAdmin();
   const entries = str(formData, "csv").split(/\r?\n/).flatMap((line) => {
@@ -182,7 +188,7 @@ export async function createGroup(_prev: FormState, formData: FormData): Promise
   const admin = await requireAdmin();
   const parsed = z.object({
     name: z.string().min(1).max(80),
-    kind: z.enum(["team", "committee", "leads", "event"]),
+    kind: z.enum(["team", "core", "leads", "event"]),
     endsOn: z.union([z.string().date(), z.literal("")]),
   }).safeParse({ name: str(formData, "name"), kind: str(formData, "kind"), endsOn: str(formData, "endsOn") });
   if (!parsed.success) return { error: "Give the group a name and type." };
@@ -252,4 +258,29 @@ export async function removeGroupMember(formData: FormData) {
   await repo.removeGroupMember(groupId, userId);
   await repo.addAudit({ actorId: staff.user.id, action: "group.remove_member", target: userId, details: { groupId } });
   refreshAll();
+}
+
+/** Admins (or the group's leads) record an excuse for a member, e.g. one sent by message. It is approved straight away. */
+export async function addExcuseForMember(_prev: FormState, formData: FormData): Promise<FormState> {
+  const meetingId = str(formData, "meetingId");
+  const userId = str(formData, "userId");
+  const reason = str(formData, "reason").slice(0, 500);
+  if (!meetingId || !userId) return { error: "Pick a meeting and a member." };
+  if (reason.length < 3) return { error: "Add a short reason." };
+  const { actorId, meeting } = await requireMeetingManager(meetingId);
+  const repo = getRepo();
+  if (!(await expectedMembers(repo, meeting)).some((p) => p.id === userId)) {
+    return { error: "That member isn't expected at this meeting." };
+  }
+  const record = (await repo.listAttendanceForMeeting(meetingId)).find((a) => a.userId === userId);
+  if (record && record.status !== "absent" && record.status !== "excused") {
+    return { error: `They are already marked ${record.status} for this meeting.` };
+  }
+  const existing = (await repo.listExcuses({ userId })).find((e) => e.meetingId === meetingId);
+  const excuseId = existing?.id ?? (await repo.createExcuse({ meetingId, userId, reason })).id;
+  await repo.setExcuseStatus(excuseId, "approved", actorId);
+  await applyApprovedExcuse(repo, meetingId, userId);
+  await repo.addAudit({ actorId, action: "excuse.added_by_admin", target: userId, details: { meetingId, reason } });
+  refreshAll();
+  return { ok: "Excuse added and approved." };
 }

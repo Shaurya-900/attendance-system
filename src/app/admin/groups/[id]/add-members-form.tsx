@@ -17,8 +17,8 @@ export function AddMembersForm({ groupId, candidates }: { groupId: string; candi
           <input className="input" placeholder="Search by name or roll no." value={filter} onChange={(e) => setFilter(e.target.value)} />
           <div className="max-h-56 space-y-1 overflow-y-auto text-sm">
             {shown.map((c) => (
-              <label key={c.id} className="flex items-center gap-2">
-                <input type="checkbox" name="userId" value={c.id} /> {c.name} <span className="muted text-xs">{c.rollNo}</span>
+              <label key={c.id} className="flex min-h-9 items-center gap-2">
+                <input type="checkbox" name="userId" value={c.id} className="size-5" /> {c.name} <span className="muted text-xs">{c.rollNo}</span>
               </label>
             ))}
           </div>

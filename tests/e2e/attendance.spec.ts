@@ -34,7 +34,7 @@ test("proxy-proof check-in flow", async ({ browser, baseURL }) => {
   await admin.getByPlaceholder("Meeting title").fill("Weekly sync");
   const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
   await admin.getByLabel("Starts at").fill(`${today}T00:00`);
-  await admin.getByRole("spinbutton", { name: "Grace minutes" }).fill("120");
+  await admin.getByLabel("Mark late after (minutes)").fill("120");
   await admin.getByRole("button", { name: "Create" }).click();
   await admin.getByRole("button", { name: "Start check-in" }).click();
   await expect(admin).toHaveURL(/\/live$/);
@@ -83,7 +83,7 @@ test("group meetings only admit group members and keep their own strikes", async
 
   // Admin creates a Leads group with Alice in it.
   await admin.goto("/admin/groups");
-  await admin.getByPlaceholder(/e\.g\. Leads/).fill("Leads");
+  await admin.getByPlaceholder(/e\.g\. Marketing/).fill("Leads");
   await admin.getByLabel("Type").selectOption("leads");
   await admin.getByRole("button", { name: "Create" }).click();
   await expect(admin.getByRole("heading", { name: "Leads" })).toBeVisible();
@@ -120,7 +120,7 @@ test("group meetings only admit group members and keep their own strikes", async
   await expect(admin.getByRole("row", { name: /Alice Member/ })).toContainText("absent");
   await expect(admin.getByRole("row", { name: /Carol Member/ })).toHaveCount(0);
   await admin.goto("/admin/members");
-  await expect(admin.getByRole("row", { name: /Alice Member/ })).toContainText("Leads:");
+  await expect(admin.getByRole("article", { name: "Alice Member" })).toContainText("Leads:");
 });
 
 test("semesters: overlap is refused, delete removes the row immediately", async ({ browser, baseURL }) => {
@@ -160,13 +160,14 @@ test("admin nav pages are prefetched, so clicking needs no server round trip", a
 
 test("several groups can be created and all show up straight away", async ({ browser, baseURL }) => {
   const admin = await asAdmin(await browser.newContext(), baseURL!);
-  const names = ["Marketing team", "Core committee", "Sub-core committee", "Hackathon 2026 team"];
+  const names = ["Marketing team", "Core", "All leads", "Hackathon 2026 team"];
+  const kinds: Record<string, string> = { "Core": "core", "All leads": "leads", "Hackathon 2026 team": "event" };
   await admin.goto("/admin/groups");
   for (const name of names) {
     await admin.getByRole("link", { name: "Groups" }).click();
     await admin.waitForURL(/\/admin\/groups$/);
-    await admin.getByPlaceholder(/e\.g\. Leads/).filter({ visible: true }).fill(name);
-    if (name.includes("committee")) await admin.getByLabel("Type").filter({ visible: true }).selectOption("committee");
+    await admin.getByPlaceholder(/e\.g\. Marketing/).filter({ visible: true }).fill(name);
+    if (kinds[name]) await admin.getByLabel("Type").filter({ visible: true }).selectOption(kinds[name]);
     await admin.getByRole("button", { name: "Create" }).click();
     await expect(admin.getByRole("heading", { name, exact: true })).toBeVisible();
   }
@@ -175,4 +176,32 @@ test("several groups can be created and all show up straight away", async ({ bro
   await admin.getByRole("link", { name: "Meetings" }).click();
   const options = await admin.getByLabel("For").locator("option").allTextContents();
   for (const name of names) expect(options).toContain(name);
+});
+
+test("double-clicking Create makes one meeting; admin can excuse a member", async ({ browser, baseURL }) => {
+  const admin = await asAdmin(await browser.newContext(), baseURL!);
+  await admin.goto("/admin/meetings");
+  await admin.getByPlaceholder("Meeting title").fill("Double click test");
+  await admin.getByLabel("Starts at").fill("2026-12-01T18:00");
+  await admin.getByRole("button", { name: "Create" }).dblclick();
+  await admin.waitForURL(/meetings\/[^/]+$/);
+  await admin.getByRole("link", { name: "Meetings" }).click();
+  await expect(admin.getByRole("link", { name: "Double click test" })).toHaveCount(1);
+
+  // Close it so Carol is absent, then excuse her on her behalf.
+  await admin.getByRole("link", { name: "Double click test" }).click();
+  await admin.getByRole("button", { name: "Start check-in" }).click();
+  await admin.getByRole("link", { name: "Manage meeting" }).click();
+  await admin.getByRole("button", { name: /Close meeting/ }).click();
+  await expect(admin.getByRole("row", { name: /Carol Member/ })).toContainText("absent");
+  await admin.getByRole("link", { name: "Excuses" }).click();
+  const meetingOption = (await admin.getByLabel("Meeting").locator("option").allTextContents()).find((t) => t.startsWith("Double click test"))!;
+  await admin.getByLabel("Meeting").selectOption({ label: meetingOption });
+  await admin.getByLabel("Member").selectOption({ label: "Carol Member" });
+  await admin.getByLabel("Reason").fill("Medical");
+  await admin.getByRole("button", { name: "Add excuse" }).click();
+  await expect(admin.getByRole("status")).toContainText("approved");
+  await admin.goto("/admin/meetings");
+  await admin.getByRole("link", { name: "Double click test" }).click();
+  await expect(admin.getByRole("row", { name: /Carol Member/ })).toContainText("excused");
 });

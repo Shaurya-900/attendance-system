@@ -14,7 +14,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en">
       <body className="min-h-screen antialiased">
         <header className="border-b" style={{ borderColor: "var(--border)" }}>
-          <nav className="mx-auto flex max-w-5xl flex-wrap items-center gap-4 px-4 py-3 text-sm">
+          <nav className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 text-sm [&>a]:py-2">
             <Link href="/" className="font-bold">E-Cell Attendance</Link>
             {user && <NavLink href="/me">My attendance</NavLink>}
             {staff?.isAdmin && <NavLink href="/admin">Admin</NavLink>}
