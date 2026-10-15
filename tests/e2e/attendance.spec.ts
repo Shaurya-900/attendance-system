@@ -162,22 +162,22 @@ test("admin nav pages are prefetched, so clicking needs no server round trip", a
 
 test("several groups can be created and all show up straight away", async ({ browser, baseURL }) => {
   const admin = await asAdmin(await browser.newContext(), baseURL!);
-  const names = ["Marketing team", "Core", "All leads", "Hackathon 2026 team"];
-  const kinds: Record<string, string> = { "Core": "core", "All leads": "leads", "Hackathon 2026 team": "event" };
+  // Unique names: --repeat-each runs in parallel against one shared in-memory server.
+  const run = Math.random().toString(36).slice(2, 6);
+  const groups = [["Marketing team", "team"], ["Core", "core"], ["All leads", "leads"], ["Hackathon 2026 team", "event"]]
+    .map(([name, kind]) => ({ name: `${name} ${run}`, kind }));
   await admin.goto("/admin/groups");
-  for (const name of names) {
-    await admin.getByRole("link", { name: "Groups" }).click();
-    await admin.waitForURL(/\/admin\/groups$/);
+  for (const { name, kind } of groups) {
     await admin.getByPlaceholder(/e\.g\. Marketing/).filter({ visible: true }).fill(name);
-    if (kinds[name]) await admin.getByLabel("Type").filter({ visible: true }).selectOption(kinds[name]);
+    await admin.getByLabel("Type").filter({ visible: true }).selectOption(kind);
     await admin.getByRole("button", { name: "Create" }).click();
     await expect(admin.getByRole("heading", { name, exact: true })).toBeVisible();
+    await admin.getByRole("link", { name: "Groups" }).click();
+    await expect(admin.getByRole("heading", { name: "Groups", exact: true })).toBeVisible();
   }
-  await admin.getByRole("link", { name: "Groups" }).click();
-  for (const name of names) await expect(admin.getByRole("link", { name, exact: true })).toBeVisible();
+  for (const { name } of groups) await expect(admin.getByRole("link", { name, exact: true })).toBeVisible();
   await admin.getByRole("link", { name: "Meetings" }).click();
-  const options = await admin.getByLabel("For").locator("option").allTextContents();
-  for (const name of names) expect(options).toContain(name);
+  for (const { name } of groups) await expect(admin.getByLabel("For").getByRole("option", { name, exact: true })).toBeAttached();
 });
 
 test("double-clicking Create makes one meeting; admin can excuse a member", async ({ browser, baseURL }) => {
