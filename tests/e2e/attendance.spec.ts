@@ -73,7 +73,7 @@ test("proxy-proof check-in flow", async ({ browser, baseURL }) => {
   await expect(admin.getByRole("row", { name: /Bob Member/ })).toContainText("absent");
   await expect(admin.getByRole("row", { name: /Alice Member/ })).toContainText("present");
   await alicePhone.goto("/me");
-  await expect(alicePhone.getByText("1 pts · Good standing")).toBeVisible();
+  await expect(alicePhone.getByText("1 pts, good standing")).toBeVisible();
 
   // Suspected proxy shows on the admin dashboard.
   await admin.goto("/admin");
@@ -162,22 +162,22 @@ test("admin nav pages are prefetched, so clicking needs no server round trip", a
 
 test("several groups can be created and all show up straight away", async ({ browser, baseURL }) => {
   const admin = await asAdmin(await browser.newContext(), baseURL!);
-  const names = ["Marketing team", "Core", "All leads", "Hackathon 2026 team"];
-  const kinds: Record<string, string> = { "Core": "core", "All leads": "leads", "Hackathon 2026 team": "event" };
+  // Unique names: --repeat-each runs in parallel against one shared in-memory server.
+  const run = Math.random().toString(36).slice(2, 6);
+  const groups = [["Marketing team", "team"], ["Core", "core"], ["All leads", "leads"], ["Hackathon 2026 team", "event"]]
+    .map(([name, kind]) => ({ name: `${name} ${run}`, kind }));
   await admin.goto("/admin/groups");
-  for (const name of names) {
-    await admin.getByRole("link", { name: "Groups" }).click();
-    await admin.waitForURL(/\/admin\/groups$/);
+  for (const { name, kind } of groups) {
     await admin.getByPlaceholder(/e\.g\. Marketing/).filter({ visible: true }).fill(name);
-    if (kinds[name]) await admin.getByLabel("Type").filter({ visible: true }).selectOption(kinds[name]);
+    await admin.getByLabel("Type").filter({ visible: true }).selectOption(kind);
     await admin.getByRole("button", { name: "Create" }).click();
     await expect(admin.getByRole("heading", { name, exact: true })).toBeVisible();
+    await admin.getByRole("link", { name: "Groups" }).click();
+    await expect(admin.getByRole("heading", { name: "Groups", exact: true })).toBeVisible();
   }
-  await admin.getByRole("link", { name: "Groups" }).click();
-  for (const name of names) await expect(admin.getByRole("link", { name, exact: true })).toBeVisible();
+  for (const { name } of groups) await expect(admin.getByRole("link", { name, exact: true })).toBeVisible();
   await admin.getByRole("link", { name: "Meetings" }).click();
-  const options = await admin.getByLabel("For").locator("option").allTextContents();
-  for (const name of names) expect(options).toContain(name);
+  for (const { name } of groups) await expect(admin.getByLabel("For").getByRole("option", { name, exact: true })).toBeAttached();
 });
 
 test("double-clicking Create makes one meeting; admin can excuse a member", async ({ browser, baseURL }) => {
@@ -221,7 +221,7 @@ test("admin can delete a group and a member", async ({ browser, baseURL }) => {
   await expect(admin.getByRole("link", { name: "Delete me team" })).toHaveCount(0);
 
   await admin.goto("/admin/members");
-  await admin.getByRole("textbox").last().fill("temp@ecell.test,Temp Person,X1");
+  await admin.getByRole("textbox").last().fill("temp@ecell.test,Temp Person,24010110999");
   await admin.getByRole("button", { name: "Import" }).click();
   await expect(admin.getByText("temp@ecell.test")).toBeVisible();
   await admin.getByRole("button", { name: "Remove" }).click();
@@ -263,4 +263,14 @@ test("a meeting can be deleted", async ({ browser, baseURL }) => {
   await admin.getByRole("button", { name: "Delete meeting" }).click();
   await admin.waitForURL(/\/admin\/meetings$/);
   await expect(admin.getByRole("link", { name: "Mistake meeting" })).toHaveCount(0);
+});
+
+test("roster import rejects bad roll numbers and lists the skipped lines", async ({ browser, baseURL }) => {
+  const admin = await asAdmin(await browser.newContext(), baseURL!);
+  await admin.goto("/admin/members");
+  await admin.locator("textarea[name=csv]").fill("dev@snu.edu.in,Dev Shah,24010110201\nbad@snu.edu.in,Bad Roll,21BCE001");
+  await admin.getByRole("button", { name: "Import" }).click();
+  await expect(admin.getByRole("alert").filter({ hasText: "Imported 1 member(s)" })).toContainText("bad@snu.edu.in,Bad Roll,21BCE001");
+  await expect(admin.getByText("Dev Shah")).toBeVisible();
+  await expect(admin.getByText("Bad Roll", { exact: true })).toHaveCount(0);
 });

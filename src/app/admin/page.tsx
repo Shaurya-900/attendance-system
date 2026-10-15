@@ -57,7 +57,7 @@ export default async function AdminDashboard() {
         </section>
       </div>
       {notJoined.length > 0 && (
-        <section className="card flex flex-wrap items-center justify-between gap-2 border-l-4 text-sm" style={{ borderLeftColor: "#d97706" }}>
+        <section className="card flex flex-wrap items-center justify-between gap-2 border-l-4 text-sm" style={{ borderLeftColor: "var(--pencil)" }}>
           <span>
             <strong>{notJoined.length}</strong> added member(s) haven&apos;t signed in yet. Meetings they miss are marked absent when they first sign in.
           </span>

@@ -10,7 +10,7 @@ export function NavLink({ href, exact = false, className = "", children }: { hre
   return (
     // prefetch: load the full page (data included) in the background as soon as the link is
     // on screen, so clicking it shows the finished page straight away.
-    <Link href={href} prefetch className={`${className} ${active ? "font-semibold underline underline-offset-4" : ""}`} aria-current={active ? "page" : undefined}>
+    <Link href={href} prefetch className={`${className} ${active ? "font-semibold text-[var(--accent)]" : ""}`} aria-current={active ? "page" : undefined}>
       {children}
     </Link>
   );

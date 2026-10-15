@@ -9,7 +9,7 @@ function SubmitButton({ label, pendingLabel, className }: { label: string; pendi
 
 /** A one-button form that asks for confirmation first, for destructive actions. */
 export function ConfirmForm({
-  action, fields, confirm: message, label, pendingLabel = "Deleting…", className = "btn-ghost text-xs text-red-700 dark:text-red-400",
+  action, fields, confirm: message, label, pendingLabel = "Deleting…", className = "btn-ghost text-xs text-[var(--red)]",
 }: {
   action: (formData: FormData) => void | Promise<void>;
   fields: Record<string, string>;

@@ -3,7 +3,8 @@ import { requireAdmin } from "@/lib/auth";
 import { scopeLabel, standings } from "@/lib/meetings";
 import { getRepo } from "@/lib/repo";
 import { ConfirmForm } from "@/components/confirm-form";
-import { adjustStrikes, deleteMember, deleteRosterEntry, importRoster, resetPasskey, setActive } from "../actions";
+import { ImportRosterForm } from "./import-roster-form";
+import { adjustStrikes, deleteMember, deleteRosterEntry, resetPasskey, setActive } from "../actions";
 
 export default async function MembersPage() {
   const admin = await requireAdmin();
@@ -80,12 +81,7 @@ export default async function MembersPage() {
         })}
       </div>
 
-      <form action={importRoster} className="card space-y-2">
-        <h2 className="font-semibold">Import members</h2>
-        <p className="muted text-xs">Only people added here can sign in. One per line: <code>email,name,roll_no[,admin]</code>. Existing entries are updated.</p>
-        <textarea name="csv" rows={5} className="input font-mono text-xs" placeholder={"asha@college.edu,Asha Rao,22BCE104\nlead@college.edu,Core Lead,21BCE001,admin"} />
-        <button className="btn">Import</button>
-      </form>
+      <ImportRosterForm />
 
       {notJoined.length > 0 && (
         <div className="card">

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, safeNext } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { getRepo } from "@/lib/repo";
+import { StrikeHoles } from "@/components/ui";
 import { GoogleButton } from "./google-button";
 
 const errors: Record<string, string> = {
@@ -18,10 +19,18 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const demoUsers = env.backend === "memory" ? await getRepo().listProfiles() : [];
 
   return (
-    <div className="mx-auto max-w-sm space-y-4 pt-8">
-      <h1 className="text-2xl font-bold">Sign in</h1>
-      <p className="muted text-sm">Use your college Google account. You&apos;ll register your phone once, then check in at meetings by scanning the QR on screen.</p>
-      {error && <p className="rounded-lg bg-red-100 p-3 text-sm text-red-800">{errors[error] ?? "Something went wrong."}</p>}
+    <div className="mx-auto max-w-sm space-y-6 pt-6 sm:pt-12">
+      <div className="space-y-3">
+        <StrikeHoles points={0} size="1.25rem" />
+        <h1 className="text-4xl font-extrabold leading-[1.05]">Three strikes.<br />No proxies.</h1>
+        <p className="muted">Sign in with your college Google account to check in at E-Cell meetings and see where you stand.</p>
+      </div>
+      <ol className="space-y-2 border-l-2 pl-4 text-sm" style={{ borderColor: "var(--border)" }}>
+        <li><strong>Once:</strong> register your phone with your fingerprint or face.</li>
+        <li><strong>At each meeting:</strong> scan the QR code on the screen.</li>
+        <li><strong>Confirm</strong> with your fingerprint. You&apos;re marked present.</li>
+      </ol>
+      {error && <p role="alert" className="alert alert-error">{errors[error] ?? "Something went wrong."}</p>}
       {env.backend === "memory" ? (
         <div className="card space-y-2">
           <p className="text-sm font-semibold">Demo mode: pick a user</p>

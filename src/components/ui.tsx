@@ -1,22 +1,39 @@
 import type { StrikeLevel } from "@/lib/strikes";
+import { FLAGGED_AT } from "@/lib/strikes";
 import type { AttendanceStatus } from "@/lib/types";
 
 const levelStyle: Record<StrikeLevel, string> = {
-  ok: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200",
-  warning: "bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-200",
-  flagged: "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-200",
+  ok: "bg-[var(--accent-soft)] text-[var(--accent)]",
+  warning: "bg-[var(--pencil-soft)] text-[var(--pencil)]",
+  flagged: "bg-[var(--red-soft)] text-[var(--red)]",
 };
+
+/** Three punched holes, filled in red per strike point (half points fill half a hole). */
+export function StrikeHoles({ points, size = "0.625rem" }: { points: number; size?: string }) {
+  return (
+    <span className="holes" role="img" aria-label={`${points} of ${FLAGGED_AT} strikes`} style={{ "--size": size, "--gap": `calc(${size} / 2.5)` } as React.CSSProperties}>
+      {Array.from({ length: FLAGGED_AT }, (_, i) => {
+        const fill = Math.min(Math.max(points - i, 0), 1);
+        return <span key={i} className="hole" data-full={fill === 1 || undefined} style={{ "--fill": `${fill * 100}%` } as React.CSSProperties} />;
+      })}
+    </span>
+  );
+}
 
 export function LevelBadge({ level, points }: { level: StrikeLevel; points: number }) {
   const label = level === "ok" ? "Good standing" : level === "warning" ? "Warning" : "Flagged";
-  return <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${levelStyle[level]}`}>{points} pts · {label}</span>;
+  return (
+    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold ${levelStyle[level]}`}>
+      <StrikeHoles points={points} size="0.5rem" /> {points} pts, {label.toLowerCase()}
+    </span>
+  );
 }
 
 const statusStyle: Record<AttendanceStatus, string> = {
   present: levelStyle.ok,
   late: levelStyle.warning,
   absent: levelStyle.flagged,
-  excused: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
+  excused: "bg-[var(--border)] text-[var(--muted)]",
 };
 
 export function StatusBadge({ status }: { status: AttendanceStatus }) {
@@ -25,7 +42,7 @@ export function StatusBadge({ status }: { status: AttendanceStatus }) {
 
 export function Flags({ flags }: { flags: string[] }) {
   if (flags.length === 0) return null;
-  return <span className="ml-1 rounded bg-red-600 px-1.5 py-0.5 text-[10px] font-bold uppercase text-white">{flags.join(", ").replace(/_/g, " ")}</span>;
+  return <span className="ml-1 rounded border border-[var(--red)] px-1.5 py-0.5 text-[11px] font-semibold text-[var(--red)]">{flags.join(", ").replace(/_/g, " ")}</span>;
 }
 
 export function fmt(iso: string | null) {
@@ -35,7 +52,7 @@ export function fmt(iso: string | null) {
 
 export function GroupBadge({ name }: { name: string | null | undefined }) {
   return (
-    <span className="rounded-full border px-2 py-0.5 text-xs font-medium" style={{ borderColor: "var(--border)" }}>
+    <span className="whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-medium" style={{ borderColor: "var(--border)" }}>
       {name ?? "Full body"}
     </span>
   );

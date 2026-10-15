@@ -1,9 +1,9 @@
 "use client";
 
-import { createBrowserSupabase } from "@/lib/supabase/client";
-
 export function GoogleButton({ next, domain }: { next: string; domain: string | null }) {
   async function signIn() {
+    // Loaded on click: keeps ~70 kB of Supabase client off the first page everyone sees.
+    const { createBrowserSupabase } = await import("@/lib/supabase/client");
     await createBrowserSupabase().auth.signInWithOAuth({
       provider: "google",
       options: {

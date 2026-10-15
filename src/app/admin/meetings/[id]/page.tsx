@@ -48,7 +48,7 @@ export default async function MeetingPage({ params }: { params: Promise<{ id: st
           action={deleteMeeting}
           fields={{ meetingId: id }}
           label="Delete meeting"
-          className="btn-ghost text-red-700 dark:text-red-400"
+          className="btn-ghost text-[var(--red)]"
           confirm={`Delete "${meeting.title}"? Its attendance and excuses are removed too, and any strikes from it disappear. This can't be undone.`}
         />
       </div>

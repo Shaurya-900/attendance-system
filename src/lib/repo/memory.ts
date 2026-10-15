@@ -23,10 +23,10 @@ function seed(): Store {
   const now = new Date().toISOString();
   const year = new Date().getFullYear();
   const people: RosterEntry[] = [
-    { email: "admin@ecell.test", name: "Core Admin", rollNo: "ADM001", role: "admin" },
-    { email: "alice@ecell.test", name: "Alice Member", rollNo: "21BCE001", role: "member" },
-    { email: "bob@ecell.test", name: "Bob Member", rollNo: "21BCE002", role: "member" },
-    { email: "carol@ecell.test", name: "Carol Member", rollNo: "21BCE003", role: "member" },
+    { email: "admin@ecell.test", name: "Core Admin", rollNo: "22010110001", role: "admin" },
+    { email: "alice@ecell.test", name: "Alice Member", rollNo: "24010110001", role: "member" },
+    { email: "bob@ecell.test", name: "Bob Member", rollNo: "24010110002", role: "member" },
+    { email: "carol@ecell.test", name: "Carol Member", rollNo: "24010110003", role: "member" },
   ];
   return {
     roster: people.map((p) => ({ ...p, addedAt: now })),
