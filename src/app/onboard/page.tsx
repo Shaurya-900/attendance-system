@@ -18,6 +18,7 @@ export default async function OnboardPage({ searchParams }: { searchParams: Prom
           <li>Changed phones? Ask an admin to reset your registration.</li>
         </ul>
       </div>
+      {next.startsWith("/checkin") && <p className="alert alert-ok">After this, scan the code on the screen once more to check in. It changes every 10 seconds.</p>}
       <RegisterPasskey next={next} />
     </div>
   );

@@ -52,7 +52,23 @@ typography:
     fontSize: "0.75rem"
     fontWeight: 600
     lineHeight: 1.33
+  stamp-word:
+    fontFamily: "Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "27px"
+    fontWeight: 800
+    letterSpacing: "0.5px"
+  stamp-time:
+    fontFamily: "Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "13px"
+    fontWeight: 600
+    letterSpacing: "1.5px"
+  stamp-rim:
+    fontFamily: "Schibsted Grotesk, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "10.5px"
+    fontWeight: 700
+    letterSpacing: "2.5px"
 rounded:
+  focus: "4px"
   sm: "0.5rem"
   md: "0.75rem"
   full: "999px"
@@ -122,7 +138,7 @@ components:
 
 **Creative North Star: "The Club Register"**
 
-The app is the club's attendance register, moved onto members' phones. Everything borrows from the paper book a secretary would keep: register paper for the page, blue-black ink for writing, register blue for "present", red pen for absences and strikes, pencil for "late". A check-in lands as a rubber stamp; strikes are punched holes. The props are there to make the rules instantly readable, never to dress the app up.
+The app is the club's attendance register, moved onto members' phones. Everything borrows from the paper book a secretary would keep: register paper for the page, blue-black ink for writing, register blue for "present", red pen for absences and strikes, pencil for "late". A check-in is a rubber stamp pressed onto a ruled register page; strikes are punched holes. The props are there to make the rules instantly readable, never to dress the app up.
 
 The mood is friendly, tidy and quick. Members open it for five seconds at the start of a meeting, so screens are short, calm and obvious. The surfaces are soft and approachable: gently rounded cards, inputs and buttons on light paper, with ruled lines rather than shadows separating things. Leads and admins get the same register on denser screens (tables, lists), still readable on a phone.
 
@@ -175,6 +191,7 @@ Each colour has a night counterpart (the `night-*` tokens), switched by `prefers
 - **Body** (400, 0.875rem): lists, tables, forms and most running text; the base page size is 1rem for the few longer paragraphs.
 - **Label** (600, 0.75rem): badges, flags, field captions and stat labels.
 - **Big numbers** (700, 1.25rem on My attendance, 1.875rem on the projector's live count): always tabular figures so counts line up.
+- **Stamp lettering** (SVG units inside a 200-unit stamp, so they scale with it): the status word (800, 27), the time (600, 13, tracked 1.5) and the rim text (700, 10.5, tracked 2.5, all caps).
 
 ### Named Rules
 **The Tabular Count Rule.** Any number that is counted or compared (stats, live check-in count, table values) uses tabular figures.
@@ -225,7 +242,7 @@ Friendly, chunky and easy to hit with a thumb.
 - **Error:** shown below the form as an error alert, not on the field.
 
 ### Alerts
-Messages under forms: a washed box with a 0.5rem radius and a 3px coloured left edge. Red Pen for errors (and for partial imports listing skipped lines), Pencil for warnings, Register Ink for success. Multi-line messages keep their line breaks.
+Messages under forms and on check-in notices: a washed box with a 0.5rem radius and a 1px border in the same ink at 35% strength, all the way round. Red Pen for errors (and for partial imports listing skipped lines), Pencil for warnings and "you'll be marked late", Register Ink for success. Multi-line messages keep their line breaks.
 
 ### Navigation
 The top bar is Page White with a ruled bottom edge: the E-Cell logo and "E-Cell Attendance" in bold, then text links. The current link is Register Ink, semibold, with a 2px underline 6px below. On phones the links wrap onto a second line. Admin sections add a row of ghost-button tabs underneath.
@@ -236,8 +253,15 @@ Full width, body size. Headers are semibold Faded Ink over a 2px ruled line; row
 ### Strike Holes (signature)
 Three punched circles (the 3-strike limit), outlined in faded ink. Each strike point fills a hole with Red Pen from left to right (half points fill half a hole); a full hole gets a red rim. Used large on My attendance, small inside standing badges. Screen readers hear "N of 3 strikes".
 
-### Check-in Stamp (signature)
-A 9rem circle with a 4px double Register Ink ring, tilted -6°. It is the app's one orchestrated moment: on a successful check-in it lands in 0.35s, starting larger and more tilted. Reduced-motion users see it already in place.
+### Check-in Receipt and Stamp (signature)
+On a successful check-in the whole screen becomes a ruled register page: Register Paper with 1px Ruled Lines every 2.25rem and a faint Red Pen margin line, covering the header. On it sits a rubber stamp drawn in SVG (up to 18rem wide, tilted -6°): a heavy outer ring and a thin inner ring, "E-CELL ATTENDANCE" around the top, the date around the bottom, the status word in the middle and the check-in time under it. The stamp's ink is the status colour: Register Ink stamps **PRESENT**, Pencil stamps **LATE**.
+
+Under the stamp: the meeting name as the heading, a register line (member name on the left, the status in its ink on the right, underlined in that ink), one sentence with the time, a reassurance line ("Late doesn't count as a strike. You can put your phone away.") and a ghost "View my attendance" button.
+
+The stamp is the app's one orchestrated moment: it is pressed on in 0.45s with an exponential ease-out (`cubic-bezier(.16, 1, .3, 1)`), from 1.35× scale, -16° and a 2px blur to rest. It starts fully visible. Revisiting an existing check-in shows the stamp already in place, and reduced-motion users never see it move.
+
+### Check-in Screen
+One column, max 28rem. The meeting name is the heading, with the group and start time under it. A pencil alert warns before the tap when the member will be marked late. On phones the Check in button and its helper text sit low in the thumb zone; on wider screens they follow the heading. While waiting for the fingerprint the button keeps full contrast and shows a small spinning ring. Dead ends (no code, expired code, not open yet, closed, wrong group, phone just registered) are notices: a headline, one alert with the next step, and a "Go to my attendance" button.
 
 ## Do's and Don'ts
 
@@ -253,5 +277,7 @@ A 9rem circle with a 4px double Register Ink ring, tilted -6°. It is the app's 
 - **Don't** add drop shadows to cards, buttons or the header.
 - **Don't** use red, blue or pencil for decoration or for a meaning other than their status.
 - **Don't** add a second typeface; make hierarchy with weight and size.
-- **Don't** add motion beyond quick state transitions; the stamp is the only choreographed animation.
+- **Don't** add motion beyond quick state transitions and the busy spinner; the stamp is the only choreographed animation, and nothing bounces or overshoots.
+- **Don't** put a thick coloured edge on one side of an alert, card or list item; tint the whole border instead.
+- **Don't** stamp a status in a colour that doesn't match it; the stamp's ink is the status (One Meaning Rule).
 - **Don't** hide navigation behind a menu on phones; let it wrap.
