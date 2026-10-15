@@ -1,10 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import { Schibsted_Grotesk } from "next/font/google";
+import Image from "next/image";
 import Link from "next/link";
 import { NavLink } from "@/components/nav-link";
-import { StrikeHoles } from "@/components/ui";
 import { getCurrentUser, getStaff } from "@/lib/auth";
 import "./globals.css";
+import logo from "./icon.png";
 
 // Self-hosted at build time: no request to Google from the browser, no layout shift.
 const body = Schibsted_Grotesk({ subsets: ["latin"], variable: "--font-body", display: "swap" });
@@ -25,7 +26,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <header className="border-b" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
           <nav className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-5 gap-y-1 px-4 py-2 text-sm [&>a]:py-2">
             <Link href="/" className="flex items-center gap-2 font-bold tracking-tight">
-              <StrikeHoles points={0} size="0.55rem" />
+              <Image src={logo} alt="" width={28} height={28} priority />
               E-Cell Attendance
             </Link>
             {user && <NavLink href="/me">My attendance</NavLink>}
