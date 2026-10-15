@@ -11,7 +11,8 @@ import { z } from "zod";
 import { canManageGroup, requireAdmin, requireStaff } from "@/lib/auth";
 import { applyApprovedExcuse, closeMeeting, expectedMembers } from "@/lib/meetings";
 import { getRepo } from "@/lib/repo";
-import type { AttendanceStatus, Meeting, Role } from "@/lib/types";
+import { parseRoster } from "@/lib/roster";
+import type { AttendanceStatus, Meeting } from "@/lib/types";
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 
@@ -150,15 +151,14 @@ export async function setActive(formData: FormData) {
   refreshAll();
 }
 
-/** CSV lines: email,name,roll_no[,role]; a header row is optional. */
-export async function importRoster(formData: FormData) {
+/** CSV lines: email,name,roll_no[,role]; a header row is optional. Valid lines are imported; bad ones are reported. */
+export async function importRoster(_prev: FormState, formData: FormData): Promise<FormState> {
   const admin = await requireAdmin();
-  const entries = str(formData, "csv").split(/\r?\n/).flatMap((line) => {
-    const [email, name, rollNo, role] = line.split(",").map((s) => s.trim());
-    if (!email || !email.includes("@") || !name) return [];
-    return [{ email: email.toLowerCase(), name, rollNo: rollNo || null, role: (role === "admin" ? "admin" : "member") as Role }];
-  });
-  if (entries.length === 0) return;
+  const { entries, rejected } = parseRoster(str(formData, "csv"));
+  const skipped = rejected.length
+    ? `Skipped ${rejected.length} line(s). Each needs an email, a name and a roll number of 11 digits starting with 2:\n${rejected.join("\n")}`
+    : "";
+  if (entries.length === 0) return { error: skipped || "Paste at least one line." };
   const repo = getRepo();
   await repo.upsertRoster(entries);
   // Keep signed-up members in sync, so e.g. promoting someone to admin takes effect.
@@ -170,6 +170,8 @@ export async function importRoster(formData: FormData) {
   }));
   await repo.addAudit({ actorId: admin.id, action: "roster.import", target: null, details: { count: entries.length } });
   refreshAll();
+  const msg = `Imported ${entries.length} member(s).`;
+  return skipped ? { error: `${msg} ${skipped}` } : { ok: msg };
 }
 
 export type FormState = { error?: string; ok?: string } | null;
