@@ -48,7 +48,7 @@ Besides full-body meetings, admins can create as many **groups** as needed under
 2. In Supabase → Authentication → Providers, enable **Google** (create OAuth credentials in Google Cloud; add `https://<your-project>.supabase.co/auth/v1/callback` as a redirect URI). Add your site URL and `https://<your-site>/api/auth/callback` to Supabase's allowed redirect URLs.
 3. Add yourself as the first admin:
    ```sql
-   insert into roster (email, name, roll_no, role) values ('you@yourcollege.edu', 'Your Name', 'XYZ', 'admin');
+   insert into roster (email, name, roll_no, role) values ('you@snu.edu.in', 'Your Name', '23010110001', 'admin');
    ```
    Then import the other members from **Admin → Members** (`email,name,roll_no` per line).
 4. Copy `.env.example` to `.env.local` and fill it in. `WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGIN` must match the deployed domain exactly (passkeys are bound to it, so don't change domains later without resetting passkeys).

@@ -83,7 +83,7 @@ export default async function MembersPage() {
       <form action={importRoster} className="card space-y-2">
         <h2 className="font-semibold">Import members</h2>
         <p className="muted text-xs">Only people added here can sign in. One per line: <code>email,name,roll_no[,admin]</code>. Existing entries are updated.</p>
-        <textarea name="csv" rows={5} className="input font-mono text-xs" placeholder={"asha@college.edu,Asha Rao,22BCE104\nlead@college.edu,Core Lead,21BCE001,admin"} />
+        <textarea name="csv" rows={5} className="input font-mono text-xs" placeholder={"asha@snu.edu.in,Asha Rao,24010110104\nlead@snu.edu.in,Core Lead,23010110001,admin"} />
         <button className="btn">Import</button>
       </form>
 
