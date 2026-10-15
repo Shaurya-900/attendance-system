@@ -16,8 +16,8 @@ export async function POST(req: NextRequest) {
 
   const repo = getRepo();
   const [meeting, passkey] = await Promise.all([repo.getMeeting(state.meetingId), repo.getPasskeyByUser(user.id)]);
-  if (!meeting || meeting.status !== "live") return NextResponse.json({ error: "This meeting is no longer open." }, { status: 400 });
-  if (!passkey) return NextResponse.json({ error: "Register your phone first." }, { status: 400 });
+  if (!meeting || meeting.status !== "live") return NextResponse.json({ error: "Check-in for this meeting has closed.", next: "me" }, { status: 400 });
+  if (!passkey) return NextResponse.json({ error: "Register your phone first.", next: "onboard" }, { status: 400 });
 
   let newCounter: number | null;
   try {
@@ -37,7 +37,8 @@ export async function POST(req: NextRequest) {
   }
   if (deviceId !== passkey.deviceId) flags.push("device_mismatch");
 
-  const status = statusForCheckIn(meeting.startsAt, meeting.graceMinutes);
+  // Decided by when they scanned, so the status the screen showed before the tap is the one they get.
+  const status = statusForCheckIn(meeting.startsAt, meeting.graceMinutes, state.scannedAt ?? Date.now());
   const checkedInAt = new Date().toISOString();
   const result = await repo.insertAttendance({
     meetingId: meeting.id, userId: user.id, status, checkedInAt,
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
 
   if (result === "duplicate_device") {
     await repo.addAudit({ actorId: user.id, action: "proxy.duplicate_device", target: meeting.id, details: { deviceId } });
-    return NextResponse.json({ error: "This phone already checked someone else in to this meeting. Each phone checks in one member, so use your own registered phone." }, { status: 409 });
+    return NextResponse.json({ error: "This phone already checked someone else in to this meeting. Each phone checks in one member, so use your own registered phone.", next: "me" }, { status: 409 });
   }
   if (result === "ok") await repo.updatePasskeyCounter(passkey.credentialId, newCounter);
   const res = NextResponse.json(result === "duplicate_user" ? { alreadyCheckedIn: true } : { ok: true, status, meetingTitle: meeting.title, clock: clock(checkedInAt), date: stampDate(checkedInAt) });

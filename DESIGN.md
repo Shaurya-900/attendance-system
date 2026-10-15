@@ -106,30 +106,18 @@ components:
     rounded: "{rounded.sm}"
     padding: "0.5rem 0.75rem"
     height: "2.5rem"
-  badge-present:
-    backgroundColor: "{colors.register-ink-soft}"
+  status-present:
     textColor: "{colors.register-ink}"
     typography: "{typography.label}"
-    rounded: "{rounded.full}"
-    padding: "0.125rem 0.5rem"
-  badge-late:
-    backgroundColor: "{colors.pencil-soft}"
+  status-late:
     textColor: "{colors.pencil}"
     typography: "{typography.label}"
-    rounded: "{rounded.full}"
-    padding: "0.125rem 0.5rem"
-  badge-absent:
-    backgroundColor: "{colors.red-pen-soft}"
+  status-absent:
     textColor: "{colors.red-pen}"
     typography: "{typography.label}"
-    rounded: "{rounded.full}"
-    padding: "0.125rem 0.5rem"
-  badge-excused:
-    backgroundColor: "{colors.ruled-line}"
+  status-excused:
     textColor: "{colors.faded-ink}"
     typography: "{typography.label}"
-    rounded: "{rounded.full}"
-    padding: "0.125rem 0.5rem"
 ---
 
 # Design System: E-Cell Attendance
@@ -156,18 +144,18 @@ Dark mode is the same register at night: deep navy paper, pale ink, and lighter 
 A register on paper: one ink blue that means "present", a red pen that means "absent or struck", a pencil brown for "late", and quiet blue-grey neutrals for the page.
 
 ### Primary
-- **Register Ink** (#2341b5): the main action colour and the meaning of "present". Primary buttons, active navigation, focus rings, the check-in stamp, present badges and success messages. Its soft tint, **Register Wash** (#e6ebfb), backs current-page tabs, success alerts, selection and table-row hover.
+- **Register Ink** (#2341b5): the main action colour and the meaning of "present". Primary buttons, active navigation, focus rings, the PRESENT stamp and present marks. Its soft tint, **Register Wash** (#e6ebfb), backs only current-page tabs, text selection, input focus halos and table-row hover.
 
 ### Secondary
-- **Red Pen** (#c62f28): absences, strikes and errors. Fills the punched strike holes, colours absent and flagged badges, error alerts, device flags, and the red margin line on a member's own history table. Its tint **Red Wash** (#fbe9e7) backs those badges and alerts.
+- **Red Pen** (#c62f28): absences, strikes and errors. Fills the punched strike holes, writes absent and flagged marks, error messages and device flags, and draws the red margin line of the register paper and the member's own history table.
 
 ### Tertiary
-- **Pencil** (#925f07): late check-ins and warnings (2 strikes). Late badges, warning badges and warning alerts, on **Pencil Wash** (#fbf1dc).
+- **Pencil** (#925f07): late check-ins and warnings (2 strikes). Late and warning marks, the LATE stamp, and the Check in button when the tap will count as late.
 
 ### Neutral
 - **Blue-Black Ink** (#151b34): all body text and headings.
 - **Faded Ink** (#5b6380): secondary text (`muted`): helper copy, table headers, timestamps, roll numbers, labels.
-- **Ruled Line** (#dde2ef): every border and divider, card outlines, table rules; also the background of "excused" badges.
+- **Ruled Line** (#dde2ef): every border and divider, card outlines, table rules and the register paper's ruled lines.
 - **Register Paper** (#f4f6fb): the page background.
 - **Page White** (#ffffff): cards, inputs, ghost buttons and the header, sitting on Register Paper.
 
@@ -176,7 +164,7 @@ Each colour has a night counterpart (the `night-*` tokens), switched by `prefers
 ### Named Rules
 **The One Meaning Rule.** Blue means present or "go", red means absent or struck, pencil means late or warning. Never use one of them decoratively or for a different meaning.
 
-**The Wash-Behind-Ink Rule.** Status badges show a status colour as ink on its own wash (Register Ink on Register Wash, Red Pen on Red Wash, Pencil on Pencil Wash), never as a solid block with white text; the primary button is the exception. Messages are never washed (see Messages).
+**The Ink-On-Paper Rule.** Status is written straight onto the page in its ink, like a mark in the register: present in Register Ink, late in Pencil, absent in Red Pen, excused in Faded Ink. No pills, washes or boxes behind status or messages. The only solid status colour is a button (Register Ink, or Pencil for a late check-in).
 
 ## Typography
 
@@ -189,7 +177,7 @@ Each colour has a night counterpart (the `night-*` tokens), switched by `prefers
 - **Headline** (700, 1.5rem): page titles (Groups, Meetings, a group's name). Every h1 gets -0.02em tracking.
 - **Title** (600, 1rem): card and section headings (New group, Active, Import members).
 - **Body** (400, 0.875rem): lists, tables, forms and most running text; the base page size is 1rem for the few longer paragraphs.
-- **Label** (600, 0.75rem): badges, flags, field captions and stat labels.
+- **Label** (600, 0.75rem): status marks, flags, field captions and stat labels.
 - **Big numbers** (700, 1.25rem on My attendance, 1.875rem on the projector's live count): always tabular figures so counts line up.
 - **Stamp lettering** (SVG units inside a 200-unit stamp, so they scale with it): the status word (800, 27), the time (600, 13, tracked 1.5) and the rim text (700, 10.5, tracked 2.5, all caps).
 
@@ -206,14 +194,14 @@ Spacing follows Tailwind's 0.25rem scale; the steps actually used are 0.25, 0.5,
 
 ## Elevation & Depth
 
-The system is flat. There are no box shadows on surfaces; depth comes from tone and lines: white cards with a 1px Ruled Line border on Register Paper, and tinted washes for state. The only shadow is the input focus ring (`0 0 0 3px` Register Wash), which reads as a halo rather than lift.
+The system is flat. There are no box shadows on surfaces; depth comes from tone and lines: white cards with a 1px Ruled Line border on Register Paper, and Register Wash for the current tab. The only shadow is the input focus ring (`0 0 0 3px` Register Wash), which reads as a halo rather than lift.
 
 ### Named Rules
 **The Ruled Page Rule.** Separate things with a ruled line or a change of paper, never with a drop shadow.
 
 ## Shapes
 
-Soft and approachable: controls and alerts use gently rounded corners (0.5rem), cards are a touch rounder (0.75rem), and badges and the strike holes are fully round pills and circles. Borders are thin (1px) except where the register metaphor calls for weight: 2px under table headers, the 2px red margin line, and the stamp's 4px double ring.
+Soft and approachable: controls use gently rounded corners (0.5rem), cards are a touch rounder (0.75rem), the group badge is a pill and the strike holes are circles. Borders are thin (1px) except where the register metaphor calls for weight: 2px under table headers, the 2px red margin line, and the stamp's 4px double ring.
 
 ## Components
 
@@ -223,11 +211,8 @@ Friendly, chunky and easy to hit with a thumb.
 - **Primary:** Register Ink fill, white semibold text, 2.75rem tall, 0.5rem × 1.125rem padding. Brightens slightly on hover and nudges down 1px when pressed. Disabled while a form is submitting (55% opacity, progress cursor).
 - **Ghost:** Page White with a Ruled Line border, medium weight, 2.25rem tall. On hover the border and text turn Register Ink. As the current tab (sub-navigation), it fills with Register Wash and drops its border.
 
-### Badges
-- **Status badges:** small pills (label type) in ink-on-wash: present (blue), late (pencil), absent (red), excused (Ruled Line fill, Faded Ink text).
-- **Standing badge:** the same pill with three tiny strike holes plus "N pts, good standing / warning / flagged".
-- **Group badge:** an outlined pill naming the group, or "Full body".
-- **Device flags:** a red-outlined, squarer tag ("new device", "device mismatch") after a name.
+### Status Marks
+Status is text in its ink, no pill: present (Register Ink), late (Pencil), absent (Red Pen), excused (Faded Ink), label size, semibold. The standing mark is three tiny strike holes plus "N pts, good standing / warning / flagged" in the level's ink. Device flags ("new device", "device mismatch") are Red Pen text after a name. The group badge is the one outlined neutral pill, naming the group or "Full body".
 
 ### Cards / Containers
 - **Corner Style:** 0.75rem.
@@ -253,15 +238,19 @@ Full width, body size. Headers are semibold Faded Ink over a 2px ruled line; row
 ### Strike Holes (signature)
 Three punched circles (the 3-strike limit), outlined in faded ink. Each strike point fills a hole with Red Pen from left to right (half points fill half a hole); a full hole gets a red rim. Used large on My attendance, small inside standing badges. Screen readers hear "N of 3 strikes".
 
+### Register Line (signature)
+The member's line in the register: a ruled card (Register Paper's ruled lines and red margin on Page White) with their name on the left of a dashed line and their mark on the right in its ink: "not in yet" before check-in, "late" in Pencil when the tap will count as late, "absent" in Red Pen or "excused" in Faded Ink on a closed meeting. It's labelled for screen readers as "Your line in the register: …".
+
 ### Check-in Receipt and Stamp (signature)
-On a successful check-in the whole screen becomes a ruled register page: Register Paper with 1px Ruled Lines every 2.25rem and a faint Red Pen margin line, covering the header. On it sits a rubber stamp drawn in SVG (up to 18rem wide, tilted -6°): a heavy outer ring and a thin inner ring, "E-CELL ATTENDANCE" around the top, the date around the bottom, the status word in the middle and the check-in time under it. The stamp's ink is the status colour: Register Ink stamps **PRESENT**, Pencil stamps **LATE**.
+On a successful check-in the whole screen becomes a ruled register page (covering the header). The meeting name is the heading (with ": present" or ": late" for screen readers), and below it the same register line the ready screen showed, with an SVG rubber stamp (13rem, tilted -6°) pressed over its right end, exactly where "not in yet" was. The stamp has a heavy outer ring and a thin inner ring, "E-CELL ATTENDANCE" around the top, the date around the bottom, the status word in the middle and the check-in time under it. Its ink is the status: Register Ink stamps **PRESENT**, Pencil stamps **LATE**. Under it: one sentence with the time, a reassurance line ("Late doesn't count as a strike. You can put your phone away.") and "View my attendance", which only becomes tappable after 0.6s so a second tap on Check in can't skip the stamp.
 
-Under the stamp: the meeting name as the heading, a register line (member name on the left, the status in its ink on the right, underlined in that ink), one sentence with the time, a reassurance line ("Late doesn't count as a strike. You can put your phone away.") and a ghost "View my attendance" button.
-
-The stamp is the app's one orchestrated moment: it is pressed on in 0.45s with an exponential ease-out (`cubic-bezier(.16, 1, .3, 1)`), from 1.35× scale, -16° and a 2px blur to rest. It starts fully visible. Revisiting an existing check-in shows the stamp already in place, and reduced-motion users never see it move.
+The stamp is the app's one orchestrated moment: it is pressed on in 0.45s with an exponential ease-out (`cubic-bezier(.16, 1, .3, 1)`), from 1.35× scale, -16° and a 2px blur to rest. It starts fully visible. Revisiting an existing check-in shows it already in place, and reduced-motion users never see it move.
 
 ### Check-in Screen
-One column, max 28rem. The meeting name is the heading, with the group, start time and minutes since the start under it. A pencil alert warns before the tap when the member will be marked late, and the Check in button itself turns Pencil. Between the heading and the button sits the member's line in the register: a ruled card (same paper as the receipt) with their name and a dashed line ending in "sign here", or "late" in pencil. It fills the space so the button stays low in the thumb zone on phones; on wider screens the button follows it. While working, the button keeps full contrast with a small spinning ring and names the step: "Getting ready…", "Confirm with your fingerprint", "Saving…". Errors appear above the button so it never moves under the thumb. Help and "Sign out and switch account" live in a "No fingerprint prompt, or not you?" disclosure. Dead ends (no code, expired code, not open yet, closed, wrong group, phone just registered) are notices: a headline, one alert with the next step, and a "Go to my attendance" button.
+One column, max 28rem. The meeting name is the heading, with the group, start time and minutes since the start under it. If the member scanned after the grace period, a line says it counts as late (no strike), their register line reads "late" in Pencil and the Check in button itself is Pencil. Late is decided by the scan time, so what the screen shows is what the stamp says. On phones the button and its helper text sit low in the thumb zone. While working, the button keeps full contrast with a small spinning ring and names the step: "Getting ready…", "Confirm with your fingerprint", "Saving…"; requests give up after 8s. Errors appear above the button so it never moves; when tapping again can't help, the button is replaced by the right next step ("Scan again", "Go to my attendance" or "Register this phone"). Help and "Sign out and switch account" live in a "No fingerprint prompt, or not you?" disclosure.
+
+### Check-in Notices
+Dead ends (no code, expired code, not open yet, closed, wrong group, phone registered) share the check-in layout: headline, one ink sentence with the next step, and the action low in the thumb zone. "Scan again" opens an in-page QR scanner (square camera view, Cancel underneath); browsers without one are told to use the camera app. A closed meeting shows the member's register line with their mark and links straight to the excuse form.
 
 ## Do's and Don'ts
 

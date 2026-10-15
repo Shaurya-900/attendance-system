@@ -1,16 +1,24 @@
 "use client";
 
 import { startAuthentication } from "@simplewebauthn/browser";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Receipt, type ReceiptData } from "./receipt";
+import { ScanAgain } from "./scan-again";
 
 type Phase = "preparing" | "fingerprint" | "saving";
-type State = { kind: "idle" } | { kind: "busy"; phase: Phase } | { kind: "done"; receipt: ReceiptData } | { kind: "error"; message: string };
+/** What to offer when tapping Check in again can't help. */
+type Next = "rescan" | "me" | "onboard";
+type State = { kind: "idle" } | { kind: "busy"; phase: Phase } | { kind: "done"; receipt: ReceiptData } | { kind: "error"; message: string; next?: Next };
+
+class CheckInError extends Error {
+  constructor(message: string, readonly next?: Next) { super(message); }
+}
 
 const PHASE_LABEL: Record<Phase, string> = { preparing: "Getting ready…", fingerprint: "Confirm with your fingerprint", saving: "Saving…" };
 const NO_CONNECTION = "No connection. Check your internet and tap Check in again.";
-const TOO_SLOW = "That's taking too long. Check your connection and tap Check in again.";
+const TOO_SLOW = "That's taking too long. Check your connection and tap Check in again. If it went through, you'll see your stamp.";
 // A crowded room's Wi-Fi can hang a request; give up and say so instead of spinning forever.
 const TIMEOUT_MS = 8000;
 
@@ -25,7 +33,7 @@ async function post(url: string, body: unknown) {
     throw new Error((e as Error).name === "TimeoutError" ? TOO_SLOW : NO_CONNECTION);
   }
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.error || "Check-in didn't go through. Tap Check in to try again.");
+  if (!res.ok) throw new CheckInError(json.error || "Check-in didn't go through. Tap Check in to try again.", json.next);
   return json;
 }
 
@@ -49,7 +57,7 @@ export function CheckIn({ ticket, title, name, late }: { ticket: string; title: 
       const err = e as Error;
       // Cancelled or timed-out fingerprint prompt: say what to do next.
       const message = err.name === "NotAllowedError" ? "The fingerprint check was cancelled or timed out. Tap Check in to try again." : err.message;
-      setState({ kind: "error", message });
+      setState({ kind: "error", message, next: err instanceof CheckInError ? err.next : undefined });
     }
   }
 
@@ -59,10 +67,15 @@ export function CheckIn({ ticket, title, name, late }: { ticket: string; title: 
     <div className="space-y-3">
       {/* Above the button, so the button stays put under the thumb for the retry. */}
       {state.kind === "error" && <p role="alert" className="alert alert-error">{state.message}</p>}
-      <button onClick={checkIn} disabled={busy} aria-busy={busy} className={`btn w-full py-4 text-lg ${late ? "btn-late" : ""}`}>
-        {busy && <span className="spinner" aria-hidden="true" />}
-        {busy ? PHASE_LABEL[state.phase] : "Check in"}
-      </button>
+      {state.kind === "error" && state.next === "rescan" ? <ScanAgain />
+        : state.kind === "error" && state.next === "me" ? <Link href="/me" className="btn w-full py-4 text-lg">Go to my attendance</Link>
+        : state.kind === "error" && state.next === "onboard" ? <Link href="/onboard" className="btn w-full py-4 text-lg">Register this phone</Link>
+        : (
+          <button onClick={checkIn} disabled={busy} aria-busy={busy} className={`btn w-full py-4 text-lg ${late ? "btn-late" : ""}`}>
+            {busy && <span className="spinner" aria-hidden="true" />}
+            {busy ? PHASE_LABEL[state.phase] : "Check in"}
+          </button>
+        )}
       <p aria-live="polite" className="sr-only">{busy ? PHASE_LABEL[state.phase] : ""}</p>
     </div>
   );

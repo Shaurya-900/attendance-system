@@ -44,7 +44,7 @@ test("proxy-proof check-in flow", async ({ browser, baseURL }) => {
 
   // A tampered / stale token is refused as soon as the page opens.
   await alicePhone.goto(`${qrUrl.pathname}?m=${qrUrl.searchParams.get("m")}&t=0.forged`);
-  await expect(alicePhone.locator("p[role=alert]")).toContainText("changes every 10 seconds");
+  await expect(alicePhone.getByText("changes every 10 seconds")).toBeVisible();
   await expect(alicePhone.getByRole("button", { name: "Check in" })).toHaveCount(0);
 
   // The real token + Alice's fingerprint works, even if she takes longer than the QR's lifetime to tap.
@@ -114,7 +114,7 @@ test("group meetings only admit group members and keep their own strikes", async
   await expect(carolPhone).toHaveURL(/\/me/);
   const freshQr = new URL((await qr.getAttribute("data-qr-url"))!);
   await carolPhone.goto(freshQr.pathname + freshQr.search);
-  await expect(carolPhone.locator("p[role=alert]")).toContainText("only for Leads");
+  await expect(carolPhone.getByText("only for Leads")).toBeVisible();
   await expect(carolPhone.getByRole("button", { name: "Check in" })).toHaveCount(0);
 
   // Closing marks only Alice (the one group member) absent, under the Leads count.

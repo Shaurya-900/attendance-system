@@ -216,12 +216,12 @@
       "css": ".ds-nav{font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;display:flex;flex-wrap:wrap;align-items:center;gap:.25rem 1.25rem;padding:.5rem 1rem;background:var(--card,#fff);border-bottom:1px solid var(--border,#dde2ef);font-size:.875rem;color:var(--fg,#151b34)}.ds-nav a{padding:.5rem 0;cursor:pointer;color:inherit;text-decoration:none}.ds-nav a:hover{color:var(--accent,#2341b5)}.ds-nav a[aria-current=page]{font-weight:600;color:var(--accent,#2341b5);text-decoration:underline 2px;text-underline-offset:6px}.ds-brand{display:flex;align-items:center;gap:.5rem;font-weight:700;letter-spacing:-.01em}.ds-logo{width:28px;height:28px;border-radius:999px;background:#2563eb}"
     },
     {
-      "name": "Status Badges",
+      "name": "Status Marks",
       "kind": "chip",
       "refersTo": "badge-present",
-      "description": "Attendance status as ink on its own wash.",
+      "description": "Attendance status written in its ink, with no pill behind it.",
       "html": "<span class=\"ds-badge ds-present\">present</span> <span class=\"ds-badge ds-late\">late</span> <span class=\"ds-badge ds-absent\">absent</span> <span class=\"ds-badge ds-excused\">excused</span>",
-      "css": ".ds-badge{font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;display:inline-block;border-radius:999px;padding:.125rem .5rem;font-size:.75rem;font-weight:600}.ds-present{background:var(--accent-soft,#e6ebfb);color:var(--accent,#2341b5)}.ds-late{background:var(--pencil-soft,#fbf1dc);color:var(--pencil,#925f07)}.ds-absent{background:var(--red-soft,#fbe9e7);color:var(--red,#c62f28)}.ds-excused{background:var(--border,#dde2ef);color:var(--muted,#5b6380)}"
+      "css": ".ds-badge{font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;display:inline;font-size:.75rem;font-weight:600}.ds-present{color:var(--accent,#2341b5)}.ds-late{color:var(--pencil,#925f07)}.ds-absent{color:var(--red,#c62f28)}.ds-excused{color:var(--muted,#5b6380)}"
     },
     {
       "name": "Messages",
@@ -262,8 +262,8 @@
         "section": "colors"
       },
       {
-        "name": "The Wash-Behind-Ink Rule",
-        "body": "Status badges show a status colour as ink on its own wash (Register Ink on Register Wash, Red Pen on Red Wash, Pencil on Pencil Wash), never as a solid block with white text; the primary button is the exception. Messages are never washed (see Messages).",
+        "name": "The Ink-On-Paper Rule",
+        "body": "Status is written straight onto the page in its ink, like a mark in the register: present in Register Ink, late in Pencil, absent in Red Pen, excused in Faded Ink. No pills, washes or boxes behind status or messages. The only solid status colour is a button (Register Ink, or Pencil for a late check-in).",
         "section": "colors"
       },
       {

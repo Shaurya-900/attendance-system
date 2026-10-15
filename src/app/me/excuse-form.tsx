@@ -7,7 +7,7 @@ import { requestExcuse } from "./actions";
 export function ExcuseForm({ meetings }: { meetings: { id: string; label: string }[] }) {
   const [state, action, pending] = useActionState(requestExcuse, null);
   return (
-    <form action={action} className="card space-y-2">
+    <form id="excuse" action={action} className="card space-y-2">
       <h2 className="font-semibold">Request an excuse</h2>
       <select name="meetingId" className="input" required>
         {meetings.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}

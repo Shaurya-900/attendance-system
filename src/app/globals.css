@@ -124,11 +124,13 @@ table.register td:first-child:not([colspan]), table.register th:first-child { bo
 }
 /* The ready screen: the member's line in the register, waiting for its stamp. */
 .register-sheet {
-  --ink: var(--accent); flex: 1; min-height: 9rem; display: flex; align-items: center;
+  --ink: var(--accent); min-height: 6.75rem; display: flex; align-items: center;
   padding: 1rem 1rem 1rem 2.75rem; border: 1px solid var(--border); border-radius: .75rem;
   background-color: var(--card); background-image: var(--ruled-paper);
 }
 .register-sheet[data-status="late"] { --ink: var(--pencil); }
+.register-sheet[data-status="absent"] { --ink: var(--red); }
+.register-sheet[data-status="excused"] { --ink: var(--muted); }
 .register-sheet .register-line { max-width: none; border-bottom-style: dashed; }
 .register-slot { color: var(--ink); font-size: .875rem; font-weight: 600; font-style: italic; }
 
@@ -143,6 +145,7 @@ table.register td:first-child:not([colspan]), table.register th:first-child { bo
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; text-align: center;
 }
 .receipt-sheet h1 { outline: none; text-wrap: balance; }
+.scanner { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: .75rem; border: 1px solid var(--border); background: var(--fg); }
 .register-line {
   display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; width: 100%; max-width: 20rem;
   padding-bottom: .25rem; border-bottom: 1.5px solid var(--ink); font-weight: 500;
@@ -151,7 +154,13 @@ table.register td:first-child:not([colspan]), table.register th:first-child { bo
 
 /* The one orchestrated moment: the check-in stamp is pressed onto the page. */
 @keyframes stamp-press { from { transform: scale(1.35) rotate(-16deg); filter: blur(2px); } to { transform: scale(1) rotate(-6deg); filter: blur(0); } }
-.stamp { width: min(72vw, 18rem); height: auto; color: var(--ink); transform: rotate(-6deg); }
+/* The stamp is pressed over the right end of the member's register line, where "not in yet" was. */
+.stamped-line { position: relative; width: 100%; max-width: 22rem; height: 13rem; display: flex; align-items: center; }
+.stamped-line .register-line { max-width: none; padding-right: 0; }
+.stamped-line .register-line .register-mark { visibility: hidden; } /* the stamp says it */
+.stamp { position: absolute; right: 0; top: 50%; margin-top: -6.5rem; width: 13rem; height: 13rem; color: var(--ink); transform: rotate(-6deg); }
+@keyframes arm { from { pointer-events: none; } to { pointer-events: auto; } }
+.arm-late { animation: arm 0s .6s both; }
 .stamp[data-landing] { animation: stamp-press .45s cubic-bezier(.16, 1, .3, 1) both; }
 .stamp-rim { font-size: 10.5px; font-weight: 700; letter-spacing: 2.5px; fill: currentColor; }
 .stamp-word { font-size: 27px; font-weight: 800; letter-spacing: .5px; fill: currentColor; }
