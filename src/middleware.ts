@@ -22,5 +22,5 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   // Skip static assets and the projector's 2-second live poll (that route checks the session itself).
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|api/admin/meetings/[^/]+/live).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|manifest.webmanifest|api/admin/meetings/[^/]+/live).*)"],
 };

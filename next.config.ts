@@ -9,7 +9,8 @@ const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   // Check-in URLs carry the QR token; never send them to other sites.
   { key: "Referrer-Policy", value: "same-origin" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), publickey-credentials-get=(self), publickey-credentials-create=(self)" },
+  // Camera only for this site: the check-in page can scan the QR again itself.
+  { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=(), payment=(), publickey-credentials-get=(self), publickey-credentials-create=(self)" },
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
 ];

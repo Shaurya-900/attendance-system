@@ -22,6 +22,8 @@ export interface ChallengeState extends Record<string, unknown> {
   userId: string;
   purpose: "register" | "checkin";
   meetingId?: string;
+  /** Check-in only: when the QR was scanned, which decides present/late. */
+  scannedAt?: number;
 }
 
 export function setChallengeCookie(res: NextResponse, state: ChallengeState) {

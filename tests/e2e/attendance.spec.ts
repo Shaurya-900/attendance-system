@@ -44,21 +44,22 @@ test("proxy-proof check-in flow", async ({ browser, baseURL }) => {
 
   // A tampered / stale token is refused as soon as the page opens.
   await alicePhone.goto(`${qrUrl.pathname}?m=${qrUrl.searchParams.get("m")}&t=0.forged`);
-  await expect(alicePhone.locator("p[role=alert]")).toContainText("QR code has expired");
+  await expect(alicePhone.getByText("changes every 10 seconds")).toBeVisible();
   await expect(alicePhone.getByRole("button", { name: "Check in" })).toHaveCount(0);
 
   // The real token + Alice's fingerprint works, even if she takes longer than the QR's lifetime to tap.
   await alicePhone.goto(qrUrl.pathname + qrUrl.search);
   await alicePhone.waitForTimeout(21_000);
   await alicePhone.getByRole("button", { name: "Check in" }).click();
-  await expect(alicePhone.getByRole("status")).toContainText("Checked in to Weekly sync");
+  await expect(alicePhone.getByRole("heading", { name: "Weekly sync" })).toBeVisible();
+  await expect(alicePhone.getByRole("status")).toContainText("You're checked in at");
   await expect(admin.getByTestId("live-count")).toHaveText("1 / 3", { timeout: 10_000 });
 
-  // Checking in again just reports the existing record.
+  // Scanning again just shows the existing record, with no tap needed.
   const fresh = new URL((await qr.getAttribute("data-qr-url"))!);
   await alicePhone.goto(fresh.pathname + fresh.search);
-  await alicePhone.getByRole("button", { name: "Check in" }).click();
   await expect(alicePhone.getByRole("status")).toContainText("already checked in");
+  await alicePhone.getByRole("link", { name: "View my attendance" }).click();
 
   // Bob tries to register on Alice's phone so she can check in for him: refused.
   await alicePhone.getByRole("button", { name: "Sign out" }).click();
@@ -113,8 +114,8 @@ test("group meetings only admit group members and keep their own strikes", async
   await expect(carolPhone).toHaveURL(/\/me/);
   const freshQr = new URL((await qr.getAttribute("data-qr-url"))!);
   await carolPhone.goto(freshQr.pathname + freshQr.search);
-  await carolPhone.getByRole("button", { name: "Check in" }).click();
-  await expect(carolPhone.locator("p[role=alert]")).toContainText("only for Leads");
+  await expect(carolPhone.getByText("only for Leads")).toBeVisible();
+  await expect(carolPhone.getByRole("button", { name: "Check in" })).toHaveCount(0);
 
   // Closing marks only Alice (the one group member) absent, under the Leads count.
   await admin.getByRole("link", { name: "Manage meeting" }).click();
@@ -273,4 +274,15 @@ test("roster import rejects bad roll numbers and lists the skipped lines", async
   await expect(admin.getByRole("alert").filter({ hasText: "Imported 1 member(s)" })).toContainText("bad@snu.edu.in,Bad Roll,21BCE001");
   await expect(admin.getByText("Dev Shah")).toBeVisible();
   await expect(admin.getByText("Bad Roll", { exact: true })).toHaveCount(0);
+});
+
+test("a first scan without a registered phone comes back asking for one more scan", async ({ browser, baseURL }) => {
+  const phone = await asAdmin(await browser.newContext(), baseURL!);
+  await addFingerprint(phone);
+  await phone.goto("/checkin?m=some-meeting&t=x");
+  await expect(phone).toHaveURL(/\/onboard/);
+  await expect(phone.getByText("scan the code on the screen once more")).toBeVisible();
+  await phone.getByRole("button", { name: "Register this phone" }).click();
+  await expect(phone).toHaveURL(/\/checkin\?m=some-meeting&registered=1/);
+  await expect(phone.getByRole("heading", { name: "Phone registered" })).toBeVisible();
 });

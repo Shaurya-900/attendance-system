@@ -1,8 +1,9 @@
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { getCurrentUser, safeNext } from "@/lib/auth";
 import { env } from "@/lib/env";
 import { getRepo } from "@/lib/repo";
-import { StrikeHoles } from "@/components/ui";
+import logo from "../icon.png";
 import { GoogleButton } from "./google-button";
 
 const errors: Record<string, string> = {
@@ -21,7 +22,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <div className="mx-auto max-w-sm space-y-6 pt-6 sm:pt-12">
       <div className="space-y-3">
-        <StrikeHoles points={0} size="1.25rem" />
+        <Image src={logo} alt="E-Cell" width={56} height={56} priority />
         <h1 className="text-4xl font-extrabold leading-[1.05]">Three strikes.<br />No proxies.</h1>
         <p className="muted">Sign in with your college Google account to check in at E-Cell meetings and see where you stand.</p>
       </div>
