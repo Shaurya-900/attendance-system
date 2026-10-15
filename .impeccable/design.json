@@ -224,11 +224,11 @@
       "css": ".ds-badge{font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;display:inline-block;border-radius:999px;padding:.125rem .5rem;font-size:.75rem;font-weight:600}.ds-present{background:var(--accent-soft,#e6ebfb);color:var(--accent,#2341b5)}.ds-late{background:var(--pencil-soft,#fbf1dc);color:var(--pencil,#925f07)}.ds-absent{background:var(--red-soft,#fbe9e7);color:var(--red,#c62f28)}.ds-excused{background:var(--border,#dde2ef);color:var(--muted,#5b6380)}"
     },
     {
-      "name": "Alerts",
+      "name": "Messages",
       "kind": "custom",
-      "description": "Form messages and check-in notices: error, warning and success, with a tinted 1px border all round.",
-      "html": "<p class=\"ds-alert ds-alert-error\">Imported 1 member(s). Skipped 1 line(s).</p><p class=\"ds-alert ds-alert-ok\">Added 3 member(s).</p>",
-      "css": ".ds-alert{font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;border-radius:.5rem;padding:.75rem;font-size:.875rem;border:1px solid;margin:0 0 .5rem;white-space:pre-line}.ds-alert-error{background:var(--red-soft,#fbe9e7);color:var(--red,#c62f28);border-color:color-mix(in srgb,var(--red,#c62f28) 35%,transparent)}.ds-alert-ok{background:var(--accent-soft,#e6ebfb);color:var(--accent,#2341b5);border-color:color-mix(in srgb,var(--accent,#2341b5) 35%,transparent)}"
+      "description": "Form messages and check-in notes written on the page: blue-black ink, errors in red pen. No box.",
+      "html": "<p class=\"ds-msg\">You're past the start, so this counts as late. Late doesn't add a strike.</p><p class=\"ds-msg ds-msg-error\">No connection. Check your internet and tap Check in again.</p>",
+      "css": ".ds-msg{font-family:var(--font-body),ui-sans-serif,system-ui,sans-serif;font-size:.875rem;font-weight:500;line-height:1.5;color:var(--fg,#151b34);margin:0 0 .5rem;white-space:pre-line}.ds-msg-error{color:var(--red,#c62f28)}"
     },
     {
       "name": "Strike Holes",
@@ -263,7 +263,7 @@
       },
       {
         "name": "The Wash-Behind-Ink Rule",
-        "body": "A status colour always appears as ink on its own wash (Register Ink on Register Wash, Red Pen on Red Wash, Pencil on Pencil Wash), never as a solid block with white text, except the primary button.",
+        "body": "Status badges show a status colour as ink on its own wash (Register Ink on Register Wash, Red Pen on Red Wash, Pencil on Pencil Wash), never as a solid block with white text; the primary button is the exception. Messages are never washed (see Messages).",
         "section": "colors"
       },
       {
@@ -280,7 +280,7 @@
     "dos": [
       "Do take every colour from the CSS variables in `src/app/globals.css` (`--accent`, `--red`, `--pencil`, `--muted`, `--border`, \u2026) so dark mode follows automatically.",
       "Do keep status as ink on its own wash: present blue, late pencil, absent red, excused grey.",
-      "Do keep tap targets at least 2.75rem tall for primary actions and 2.25rem for secondary ones.",
+      "Do keep tap targets at least 2.75rem tall for primary actions and for the one secondary action on a phone-first screen (`btn-tall`); 2.25rem is the floor elsewhere.",
       "Do separate surfaces with 1px Ruled Line borders and white-on-paper contrast.",
       "Do use tabular figures for any count.",
       "Do reuse the `.card`, `.btn`, `.btn-ghost`, `.input`, `.alert` classes and the `StrikeHoles` / badge components before writing new styles."
@@ -290,7 +290,8 @@
       "Don't use red, blue or pencil for decoration or for a meaning other than their status.",
       "Don't add a second typeface; make hierarchy with weight and size.",
       "Don't add motion beyond quick state transitions and the busy spinner; the stamp is the only choreographed animation, and nothing bounces or overshoots.",
-      "Don't put a thick coloured edge on one side of an alert, card or list item; tint the whole border instead.",
+      "Don't box messages in tinted panels (yellow, red, blue or green); write them on the page in ink.",
+      "Don't put a thick coloured edge on one side of a card or list item.",
       "Don't stamp a status in a colour that doesn't match it; the stamp's ink is the status (One Meaning Rule).",
       "Don't hide navigation behind a menu on phones; let it wrap."
     ]

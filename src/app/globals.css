@@ -86,10 +86,9 @@ header a[aria-current="page"] { text-decoration: underline 2px; text-underline-o
 }
 .input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
-.alert { border-radius: .5rem; padding: .75rem; font-size: .875rem; border: 1px solid; }
-.alert-error { background: var(--red-soft); color: var(--red); border-color: color-mix(in srgb, var(--red) 35%, transparent); }
-.alert-warn { background: var(--pencil-soft); color: var(--pencil); border-color: color-mix(in srgb, var(--pencil) 35%, transparent); }
-.alert-ok { background: var(--accent-soft); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+/* Messages are written on the page in ink, not boxed: notes and warnings in blue-black ink, errors in red pen. */
+.alert { font-size: .875rem; font-weight: 500; line-height: 1.5; color: var(--fg); }
+.alert-error { color: var(--red); }
 
 dd, [data-testid="live-count"] { font-variant-numeric: tabular-nums; } /* counts line up */
 table.data { width: 100%; font-size: .875rem; border-collapse: collapse; }

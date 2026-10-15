@@ -176,7 +176,7 @@ Each colour has a night counterpart (the `night-*` tokens), switched by `prefers
 ### Named Rules
 **The One Meaning Rule.** Blue means present or "go", red means absent or struck, pencil means late or warning. Never use one of them decoratively or for a different meaning.
 
-**The Wash-Behind-Ink Rule.** A status colour always appears as ink on its own wash (Register Ink on Register Wash, Red Pen on Red Wash, Pencil on Pencil Wash), never as a solid block with white text, except the primary button.
+**The Wash-Behind-Ink Rule.** Status badges show a status colour as ink on its own wash (Register Ink on Register Wash, Red Pen on Red Wash, Pencil on Pencil Wash), never as a solid block with white text; the primary button is the exception. Messages are never washed (see Messages).
 
 ## Typography
 
@@ -241,8 +241,8 @@ Friendly, chunky and easy to hit with a thumb.
 - **Focus:** border turns Register Ink with a 3px Register Wash halo. Elsewhere, keyboard focus is a 2px Register Ink outline offset by 2px.
 - **Error:** shown below the form as an error alert, not on the field.
 
-### Alerts
-Messages under forms and on check-in notices: a washed box with a 0.5rem radius and a 1px border in the same ink at 35% strength, all the way round. Red Pen for errors (and for partial imports listing skipped lines), Pencil for warnings and "you'll be marked late", Register Ink for success. Multi-line messages keep their line breaks.
+### Messages
+Written on the page in ink, never boxed: no wash, no border, no padding. Body size (0.875rem), weight 500. Notes, warnings and confirmations ("You're past the start, so this counts as late", "Phone registered") are Blue-Black Ink; errors are Red Pen. Multi-line messages keep their line breaks.
 
 ### Navigation
 The top bar is Page White with a ruled bottom edge: the E-Cell logo and "E-Cell Attendance" in bold, then text links. The current link is Register Ink, semibold, with a 2px underline 6px below. On phones the links wrap onto a second line. Admin sections add a row of ghost-button tabs underneath.
@@ -278,6 +278,7 @@ One column, max 28rem. The meeting name is the heading, with the group, start ti
 - **Don't** use red, blue or pencil for decoration or for a meaning other than their status.
 - **Don't** add a second typeface; make hierarchy with weight and size.
 - **Don't** add motion beyond quick state transitions and the busy spinner; the stamp is the only choreographed animation, and nothing bounces or overshoots.
-- **Don't** put a thick coloured edge on one side of an alert, card or list item; tint the whole border instead.
+- **Don't** box messages in tinted panels (yellow, red, blue or green); write them on the page in ink.
+- **Don't** put a thick coloured edge on one side of a card or list item.
 - **Don't** stamp a status in a colour that doesn't match it; the stamp's ink is the status (One Meaning Rule).
 - **Don't** hide navigation behind a menu on phones; let it wrap.
