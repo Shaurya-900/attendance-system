@@ -29,12 +29,17 @@ export interface Repo {
   listAttendanceForMeeting(meetingId: string): Promise<Attendance[]>;
   listAttendanceForUser(userId: string): Promise<Attendance[]>;
   listAllAttendance(): Promise<Attendance[]>;
+  getAttendance(meetingId: string, userId: string): Promise<Attendance | null>;
+  /** Number of present/late check-ins per meeting id. */
+  checkedInCounts(): Promise<Map<string, number>>;
   /** Insert a QR check-in; never overwrites. */
   insertAttendance(a: Attendance): Promise<InsertAttendanceResult>;
   /** Create or replace (admin overrides, meeting close, excuses). */
   upsertAttendance(a: Attendance): Promise<void>;
+  /** Insert many records in one go, leaving any that already exist untouched (meeting close, backfill). */
+  insertMissingAttendance(rows: Attendance[]): Promise<void>;
 
-  listExcuses(filter?: { userId?: string; status?: ExcuseStatus }): Promise<Excuse[]>;
+  listExcuses(filter?: { userId?: string; meetingId?: string; status?: ExcuseStatus }): Promise<Excuse[]>;
   getExcuse(id: string): Promise<Excuse | null>;
   createExcuse(input: { meetingId: string; userId: string; reason: string }): Promise<Excuse>;
   setExcuseStatus(id: string, status: ExcuseStatus, reviewedBy: string): Promise<void>;
@@ -51,6 +56,7 @@ export interface Repo {
   createGroup(input: Pick<Group, "name" | "kind" | "endsOn">): Promise<Group>;
   updateGroup(id: string, patch: Partial<Pick<Group, "name" | "endsOn" | "archived">>): Promise<void>;
   listGroupMembers(groupId?: string): Promise<GroupMember[]>;
+  listMembershipsForUser(userId: string): Promise<GroupMember[]>;
   setGroupMember(groupId: string, userId: string, role: GroupMember["role"]): Promise<void>;
   removeGroupMember(groupId: string, userId: string): Promise<void>;
   /** Deletes the group together with its meetings and their attendance and excuses. */

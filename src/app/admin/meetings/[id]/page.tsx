@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Flags, fmt, GroupBadge, StatusBadge } from "@/components/ui";
 import { canManageGroup, requireStaff } from "@/lib/auth";
-import { expectedMembers } from "@/lib/meetings";
+import { expectedFrom } from "@/lib/meetings";
 import { getRepo } from "@/lib/repo";
 import { endMeeting, overrideAttendance, startMeeting } from "../../actions";
 
@@ -13,10 +13,12 @@ export default async function MeetingPage({ params }: { params: Promise<{ id: st
   const meeting = await repo.getMeeting(id);
   if (!meeting) notFound();
   if (!canManageGroup(staff, meeting.groupId)) redirect("/admin/meetings");
-  const [records, profiles, expected, group] = await Promise.all([
-    repo.listAttendanceForMeeting(id), repo.listProfiles(), expectedMembers(repo, meeting),
+  const [records, profiles, groupMembers, group] = await Promise.all([
+    repo.listAttendanceForMeeting(id), repo.listProfiles(),
+    meeting.groupId ? repo.listGroupMembers(meeting.groupId) : [],
     meeting.groupId ? repo.getGroup(meeting.groupId) : null,
   ]);
+  const expected = expectedFrom(profiles, groupMembers, meeting);
   const recordFor = new Map(records.map((r) => [r.userId, r]));
   // Everyone expected, plus anyone with a record (e.g. removed from the group afterwards).
   const expectedIds = new Set(expected.map((p) => p.id));

@@ -91,6 +91,12 @@ export const memoryRepo: Repo = {
   async listAttendanceForMeeting(meetingId) { return clone(db().attendance.filter((a) => a.meetingId === meetingId)); },
   async listAttendanceForUser(userId) { return clone(db().attendance.filter((a) => a.userId === userId)); },
   async listAllAttendance() { return clone(db().attendance); },
+  async getAttendance(meetingId, userId) { return clone(db().attendance.find((a) => a.meetingId === meetingId && a.userId === userId) ?? null); },
+  async checkedInCounts() {
+    const counts = new Map<string, number>();
+    for (const a of db().attendance) if (a.status === "present" || a.status === "late") counts.set(a.meetingId, (counts.get(a.meetingId) ?? 0) + 1);
+    return counts;
+  },
   async insertAttendance(a) {
     const rows = db().attendance.filter((x) => x.meetingId === a.meetingId);
     if (rows.some((x) => x.userId === a.userId)) return "duplicate_user";
@@ -102,9 +108,14 @@ export const memoryRepo: Repo = {
     const i = db().attendance.findIndex((x) => x.meetingId === a.meetingId && x.userId === a.userId);
     if (i >= 0) db().attendance[i] = clone(a); else db().attendance.push(clone(a));
   },
+  async insertMissingAttendance(rows) {
+    for (const a of rows) {
+      if (!db().attendance.some((x) => x.meetingId === a.meetingId && x.userId === a.userId)) db().attendance.push(clone(a));
+    }
+  },
 
   async listExcuses(filter = {}) {
-    return clone(db().excuses.filter((e) => (!filter.userId || e.userId === filter.userId) && (!filter.status || e.status === filter.status)));
+    return clone(db().excuses.filter((e) => (!filter.userId || e.userId === filter.userId) && (!filter.meetingId || e.meetingId === filter.meetingId) && (!filter.status || e.status === filter.status)));
   },
   async getExcuse(id) { return clone(db().excuses.find((e) => e.id === id) ?? null); },
   async createExcuse(input) {
@@ -131,6 +142,7 @@ export const memoryRepo: Repo = {
   },
   async updateGroup(id, patch) { const g = db().groups.find((x) => x.id === id); if (g) Object.assign(g, patch); },
   async listGroupMembers(groupId) { return clone(db().groupMembers.filter((m) => !groupId || m.groupId === groupId)); },
+  async listMembershipsForUser(userId) { return clone(db().groupMembers.filter((m) => m.userId === userId)); },
   async setGroupMember(groupId, userId, role) {
     const m = db().groupMembers.find((x) => x.groupId === groupId && x.userId === userId);
     if (m) m.role = role;

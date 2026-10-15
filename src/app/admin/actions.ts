@@ -70,13 +70,15 @@ export async function endMeeting(formData: FormData) {
 
 export async function overrideAttendance(formData: FormData) {
   const meetingId = str(formData, "meetingId");
-  const { actorId } = await requireMeetingManager(meetingId);
+  const { actorId, meeting } = await requireMeetingManager(meetingId);
   const userId = str(formData, "userId");
   const status = z.enum(["present", "late", "absent", "excused"]).parse(str(formData, "status")) as AttendanceStatus;
   const reason = str(formData, "reason");
   if (!reason) return;
   const repo = getRepo();
-  const prev = (await repo.listAttendanceForMeeting(meetingId)).find((a) => a.userId === userId);
+  const [prev, expected] = await Promise.all([repo.getAttendance(meetingId, userId), expectedMembers(repo, meeting)]);
+  // Only people this meeting is for (or who already have a record), so a lead can't mark outsiders.
+  if (!prev && !expected.some((p) => p.id === userId)) return;
   await repo.upsertAttendance({
     meetingId, userId, status,
     checkedInAt: prev?.checkedInAt ?? null, credentialId: prev?.credentialId ?? null, deviceId: prev?.deviceId ?? null,
@@ -146,13 +148,11 @@ export async function importRoster(formData: FormData) {
   await repo.upsertRoster(entries);
   // Keep signed-up members in sync, so e.g. promoting someone to admin takes effect.
   const byEmail = new Map(entries.map((e) => [e.email, e]));
-  for (const p of await repo.listProfiles()) {
+  await Promise.all((await repo.listProfiles()).flatMap((p) => {
     const e = byEmail.get(p.email);
-    if (!e || p.id === admin.id) continue;
-    if (e.name !== p.name || e.rollNo !== p.rollNo || e.role !== p.role) {
-      await repo.upsertProfile({ ...p, name: e.name, rollNo: e.rollNo, role: e.role });
-    }
-  }
+    if (!e || p.id === admin.id || (e.name === p.name && e.rollNo === p.rollNo && e.role === p.role)) return [];
+    return [repo.upsertProfile({ ...p, name: e.name, rollNo: e.rollNo, role: e.role })];
+  }));
   await repo.addAudit({ actorId: admin.id, action: "roster.import", target: null, details: { count: entries.length } });
   refreshAll();
 }
@@ -217,7 +217,7 @@ export async function addGroupMembers(_prev: FormState, formData: FormData): Pro
   const groupId = str(formData, "groupId");
   const staff = await requireGroupManager(groupId);
   const repo = getRepo();
-  const profiles = await repo.listProfiles();
+  const [profiles, members] = await Promise.all([repo.listProfiles(), repo.listGroupMembers(groupId)]);
   const byEmail = new Map(profiles.map((p) => [p.email, p]));
   const ids = new Set(formData.getAll("userId").map(String));
   const unknown: string[] = [];
@@ -225,9 +225,10 @@ export async function addGroupMembers(_prev: FormState, formData: FormData): Pro
     const p = byEmail.get(email);
     if (p) ids.add(p.id); else unknown.push(email);
   }
-  const existing = new Set((await repo.listGroupMembers(groupId)).map((m) => m.userId));
-  const toAdd = [...ids].filter((id) => !existing.has(id) && profiles.some((p) => p.id === id));
-  for (const id of toAdd) await repo.setGroupMember(groupId, id, "member");
+  const existing = new Set(members.map((m) => m.userId));
+  const known = new Set(profiles.map((p) => p.id));
+  const toAdd = [...ids].filter((id) => !existing.has(id) && known.has(id));
+  await Promise.all(toAdd.map((id) => repo.setGroupMember(groupId, id, "member")));
   if (toAdd.length) await repo.addAudit({ actorId: staff.user.id, action: "group.add_members", target: groupId, details: { count: toAdd.length } });
   refreshAll();
   const msg = `Added ${toAdd.length} member(s).`;
@@ -269,14 +270,15 @@ export async function addExcuseForMember(_prev: FormState, formData: FormData): 
   if (reason.length < 3) return { error: "Add a short reason." };
   const { actorId, meeting } = await requireMeetingManager(meetingId);
   const repo = getRepo();
-  if (!(await expectedMembers(repo, meeting)).some((p) => p.id === userId)) {
+  const [expected, record, [existing]] = await Promise.all([
+    expectedMembers(repo, meeting), repo.getAttendance(meetingId, userId), repo.listExcuses({ userId, meetingId }),
+  ]);
+  if (!expected.some((p) => p.id === userId)) {
     return { error: "That member isn't expected at this meeting." };
   }
-  const record = (await repo.listAttendanceForMeeting(meetingId)).find((a) => a.userId === userId);
   if (record && record.status !== "absent" && record.status !== "excused") {
     return { error: `They are already marked ${record.status} for this meeting.` };
   }
-  const existing = (await repo.listExcuses({ userId })).find((e) => e.meetingId === meetingId);
   const excuseId = existing?.id ?? (await repo.createExcuse({ meetingId, userId, reason })).id;
   await repo.setExcuseStatus(excuseId, "approved", actorId);
   await applyApprovedExcuse(repo, meetingId, userId);

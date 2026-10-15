@@ -8,7 +8,7 @@ import { NewMeetingForm } from "./new-meeting-form";
 export default async function MeetingsPage() {
   const staff = await requireStaff();
   const repo = getRepo();
-  const [allMeetings, attendance, groups] = await Promise.all([repo.listMeetings(), repo.listAllAttendance(), repo.listGroups()]);
+  const [allMeetings, checkedIn, groups] = await Promise.all([repo.listMeetings(), repo.checkedInCounts(), repo.listGroups()]);
   const meetings = allMeetings.filter((m) => canManageGroup(staff, m.groupId));
   const groupName = new Map(groups.map((g) => [g.id, g.name]));
   const audiences = [
@@ -29,7 +29,7 @@ export default async function MeetingsPage() {
                 <td><GroupBadge name={m.groupId ? groupName.get(m.groupId) : null} /></td>
                 <td>{fmt(m.startsAt)}</td>
                 <td className="capitalize">{m.status}</td>
-                <td>{attendance.filter((a) => a.meetingId === m.id && (a.status === "present" || a.status === "late")).length}</td>
+                <td>{checkedIn.get(m.id) ?? 0}</td>
               </tr>
             ))}
             {meetings.length === 0 && <tr><td colSpan={5} className="muted">No meetings yet.</td></tr>}

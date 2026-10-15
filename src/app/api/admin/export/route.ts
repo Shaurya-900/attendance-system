@@ -17,7 +17,9 @@ export async function GET(req: NextRequest) {
   const staff = await getStaff(user);
   const target = meetingId ? await repo.getMeeting(meetingId) : null;
   if (!staff.isAdmin && !(target && canManageGroup(staff, target.groupId))) return new NextResponse("Forbidden", { status: 403 });
-  const [meetings, profiles, attendance] = await Promise.all([repo.listMeetings(), repo.listProfiles(), repo.listAllAttendance()]);
+  const [meetings, profiles, attendance] = await Promise.all([
+    repo.listMeetings(), repo.listProfiles(), meetingId ? repo.listAttendanceForMeeting(meetingId) : repo.listAllAttendance(),
+  ]);
   const byMeeting = new Map(meetings.map((m) => [m.id, m]));
   const byUser = new Map(profiles.map((p) => [p.id, p]));
   const rows = attendance

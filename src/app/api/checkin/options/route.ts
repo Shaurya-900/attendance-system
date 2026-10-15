@@ -19,17 +19,17 @@ export async function POST(req: NextRequest) {
   if (!verifyToken(meeting.id, meeting.qrSecret, body.data.token)) {
     return NextResponse.json({ error: "QR code expired. Scan the code on the screen again." }, { status: 400 });
   }
-  if (meeting.groupId) {
-    const members = await repo.listGroupMembers(meeting.groupId);
-    if (!members.some((m) => m.userId === user.id)) {
-      const group = await repo.getGroup(meeting.groupId);
-      return NextResponse.json({ error: `This meeting is only for ${group?.name ?? "a specific group"}.` }, { status: 403 });
-    }
+  // Everyone scans at once at the start of a meeting, so keep this to one parallel round of small queries.
+  const [memberships, existing, passkey] = await Promise.all([
+    meeting.groupId ? repo.listMembershipsForUser(user.id) : [],
+    repo.getAttendance(meeting.id, user.id),
+    repo.getPasskeyByUser(user.id),
+  ]);
+  if (meeting.groupId && !memberships.some((m) => m.groupId === meeting.groupId)) {
+    const group = await repo.getGroup(meeting.groupId);
+    return NextResponse.json({ error: `This meeting is only for ${group?.name ?? "a specific group"}.` }, { status: 403 });
   }
-  const existing = (await repo.listAttendanceForMeeting(meeting.id)).find((a) => a.userId === user.id);
   if (existing) return NextResponse.json({ alreadyCheckedIn: true, status: existing.status });
-
-  const passkey = await repo.getPasskeyByUser(user.id);
   if (!passkey) return NextResponse.json({ error: "Register your phone first.", needsOnboarding: true }, { status: 400 });
 
   const options = await authenticationOptions(passkey);

@@ -12,11 +12,19 @@ export function isGroupActive(group: Group, now = new Date()): boolean {
 }
 
 /** Who is expected at a meeting: all active members for full body, otherwise the group's active members (leads included). */
-export async function expectedMembers(repo: Repo, meeting: Pick<Meeting, "groupId">): Promise<Profile[]> {
-  const profiles = await repo.listProfiles();
+export function expectedFrom(profiles: Profile[], groupMembers: GroupMember[], meeting: Pick<Meeting, "groupId">): Profile[] {
   if (!meeting.groupId) return profiles.filter((p) => p.active && p.role === "member");
-  const ids = new Set((await repo.listGroupMembers(meeting.groupId)).map((m) => m.userId));
+  const ids = new Set(groupMembers.filter((m) => m.groupId === meeting.groupId).map((m) => m.userId));
   return profiles.filter((p) => p.active && ids.has(p.id));
+}
+
+export async function expectedMembers(repo: Repo, meeting: Pick<Meeting, "groupId">): Promise<Profile[]> {
+  const [profiles, members] = await Promise.all([repo.listProfiles(), meeting.groupId ? repo.listGroupMembers(meeting.groupId) : []]);
+  return expectedFrom(profiles, members, meeting);
+}
+
+function blankRecord(meetingId: string, userId: string, status: "absent" | "excused"): Attendance {
+  return { meetingId, userId, status, checkedInAt: null, credentialId: null, deviceId: null, source: "manual", flags: [] };
 }
 
 /** Close a meeting: every expected member without a record becomes absent, or excused if an excuse was approved. */
@@ -29,17 +37,15 @@ export async function closeMeeting(repo: Repo, meetingId: string, actorId: strin
   const [profiles, records, excuses] = await Promise.all([
     expectedMembers(repo, meeting),
     repo.listAttendanceForMeeting(meetingId),
-    repo.listExcuses({ status: "approved" }),
+    repo.listExcuses({ meetingId, status: "approved" }),
   ]);
   const attended = new Set(records.map((r) => r.userId));
-  const excused = new Set(excuses.filter((e) => e.meetingId === meetingId).map((e) => e.userId));
-  let absent = 0;
-  for (const p of profiles) {
-    if (attended.has(p.id)) continue;
-    const status = excused.has(p.id) ? "excused" : "absent";
-    if (status === "absent") absent++;
-    await repo.upsertAttendance({ meetingId, userId: p.id, status, checkedInAt: null, credentialId: null, deviceId: null, source: "manual", flags: [] });
-  }
+  const excused = new Set(excuses.map((e) => e.userId));
+  // One batched write. Existing records are never overwritten, so a check-in that lands
+  // while the meeting is closing still counts.
+  const rows = profiles.filter((p) => !attended.has(p.id)).map((p) => blankRecord(meetingId, p.id, excused.has(p.id) ? "excused" : "absent"));
+  await repo.insertMissingAttendance(rows);
+  const absent = rows.filter((r) => r.status === "absent").length;
   await repo.addAudit({ actorId, action: "meeting.close", target: meetingId, details: { present: records.length, absent } });
 }
 
@@ -54,20 +60,18 @@ export async function backfillAbsences(repo: Repo, userId: string, rosterAddedAt
   const has = new Set(records.map((r) => r.meetingId));
   const excused = new Set(excuses.map((e) => e.meetingId));
   const since = Date.parse(rosterAddedAt);
-  let count = 0;
-  for (const m of meetings) {
-    // Group membership is set by admins after sign-up, so only full-body meetings are backfilled.
-    if (m.groupId || m.status !== "closed" || Date.parse(m.startsAt) < since || has.has(m.id)) continue;
-    const status = excused.has(m.id) ? "excused" : "absent";
-    await repo.upsertAttendance({ meetingId: m.id, userId, status, checkedInAt: null, credentialId: null, deviceId: null, source: "manual", flags: [] });
-    count++;
-  }
+  // Group membership is set by admins after sign-up, so only full-body meetings are backfilled.
+  const rows = meetings
+    .filter((m) => !m.groupId && m.status === "closed" && Date.parse(m.startsAt) >= since && !has.has(m.id))
+    .map((m) => blankRecord(m.id, userId, excused.has(m.id) ? "excused" : "absent"));
+  await repo.insertMissingAttendance(rows);
+  const count = rows.length;
   if (count > 0) await repo.addAudit({ actorId: null, action: "attendance.backfill", target: userId, details: { meetings: count } });
 }
 
 /** Approving an excuse after the meeting closed turns the recorded absence into "excused". */
 export async function applyApprovedExcuse(repo: Repo, meetingId: string, userId: string) {
-  const record = (await repo.listAttendanceForMeeting(meetingId)).find((a) => a.userId === userId);
+  const record = await repo.getAttendance(meetingId, userId);
   if (record?.status === "absent") await repo.upsertAttendance({ ...record, status: "excused" });
 }
 
@@ -100,12 +104,23 @@ interface StandingData {
   memberships: GroupMember[];
 }
 
-function scopesFor(userId: string, d: StandingData, semester: Semester | null): ScopeStanding[] {
-  const byMeeting = new Map(d.meetings.map((m) => [m.id, m]));
-  const groupById = new Map(d.groups.map((g) => [g.id, g]));
+function groupBy<T>(items: T[], key: (t: T) => string): Map<string, T[]> {
+  const out = new Map<string, T[]>();
+  for (const t of items) {
+    const k = key(t);
+    const list = out.get(k);
+    if (list) list.push(t); else out.set(k, [t]);
+  }
+  return out;
+}
+
+/** `d` holds one member's attendance, adjustments and memberships (or more; they are filtered by userId). */
+function scopesFor(userId: string, d: StandingData, semester: Semester | null, byMeeting: Map<string, Meeting>, groupById: Map<string, Group>): ScopeStanding[] {
+  const attendance = d.attendance.filter((a) => a.userId === userId);
+  const adjustments = d.adjustments.filter((a) => a.userId === userId);
   const summarize = (groupId: string | null) => computeStrikes(
-    withStart(d.attendance.filter((a) => a.userId === userId && (byMeeting.get(a.meetingId)?.groupId ?? null) === groupId), byMeeting),
-    d.adjustments.filter((a) => a.userId === userId && (a.groupId ?? null) === groupId),
+    withStart(attendance.filter((a) => (byMeeting.get(a.meetingId)?.groupId ?? null) === groupId), byMeeting),
+    adjustments.filter((a) => (a.groupId ?? null) === groupId),
     semester,
     env.timezone,
   );
@@ -127,19 +142,29 @@ export async function standings(repo: Repo): Promise<{ semester: Semester | null
     repo.listMeetings(), repo.listAllAttendance(), repo.listAdjustments(), repo.listSemesters(), repo.listProfiles(),
     repo.listGroups(), repo.listGroupMembers(),
   ]);
-  const data = { meetings, attendance, adjustments, semesters, groups, memberships };
   const semester = currentSemester(semesters, env.timezone);
-  return { semester, byUser: new Map(profiles.map((p) => [p.id, scopesFor(p.id, data, semester)])) };
+  const byMeeting = new Map(meetings.map((m) => [m.id, m]));
+  const groupById = new Map(groups.map((g) => [g.id, g]));
+  // Split the records by member once, instead of scanning every record for every member.
+  const att = groupBy(attendance, (a) => a.userId);
+  const adj = groupBy(adjustments, (a) => a.userId);
+  const mem = groupBy(memberships, (m) => m.userId);
+  return {
+    semester,
+    byUser: new Map(profiles.map((p) => [p.id, scopesFor(p.id, {
+      meetings, semesters, groups, attendance: att.get(p.id) ?? [], adjustments: adj.get(p.id) ?? [], memberships: mem.get(p.id) ?? [],
+    }, semester, byMeeting, groupById)])),
+  };
 }
 
 /** Same as `standings`, but only loads one member's records. Used on their own page. */
 export async function standingsForUser(repo: Repo, userId: string): Promise<{ semester: Semester | null; scopes: ScopeStanding[]; meetings: Meeting[]; attendance: Attendance[]; groups: Group[]; memberships: GroupMember[] }> {
-  const [meetings, attendance, adjustments, semesters, groups, memberships] = await Promise.all([
+  const [meetings, attendance, adjustments, semesters, groups, mine] = await Promise.all([
     repo.listMeetings(), repo.listAttendanceForUser(userId), repo.listAdjustments(userId), repo.listSemesters(),
-    repo.listGroups(), repo.listGroupMembers(),
+    repo.listGroups(), repo.listMembershipsForUser(userId),
   ]);
-  const mine = memberships.filter((m) => m.userId === userId);
   const semester = currentSemester(semesters, env.timezone);
-  const scopes = scopesFor(userId, { meetings, attendance, adjustments, semesters, groups, memberships: mine }, semester);
+  const scopes = scopesFor(userId, { meetings, attendance, adjustments, semesters, groups, memberships: mine }, semester,
+    new Map(meetings.map((m) => [m.id, m])), new Map(groups.map((g) => [g.id, g])));
   return { semester, scopes, meetings, attendance, groups, memberships: mine };
 }

@@ -23,8 +23,12 @@ export function statusForCheckIn(startsAt: string, graceMinutes: number, now = D
 }
 
 /** Calendar date (YYYY-MM-DD) of an instant in the club's timezone. */
+const dateFormats = new Map<string, Intl.DateTimeFormat>();
 export function localDate(iso: string, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
+  // Building a formatter is slow and strike counts call this once per record, so reuse one per timezone.
+  let f = dateFormats.get(timeZone);
+  if (!f) dateFormats.set(timeZone, (f = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" })));
+  return f.format(new Date(iso));
 }
 
 export function inSemester(iso: string, semester: Semester, timeZone: string): boolean {

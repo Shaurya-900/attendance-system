@@ -42,7 +42,7 @@ Besides full-body meetings, admins can create as many **groups** as needed under
 
 ## Setup
 
-1. Create a [Supabase](https://supabase.com) project. In the SQL editor, run each file in `supabase/migrations/` in order (`0001`, `0002`, `0003`, …).
+1. Create a [Supabase](https://supabase.com) project. In the SQL editor, run each file in `supabase/migrations/` in order (`0001`, `0002`, … `0006`).
 2. In Supabase → Authentication → Providers, enable **Google** (create OAuth credentials in Google Cloud; add `https://<your-project>.supabase.co/auth/v1/callback` as a redirect URI). Add your site URL and `https://<your-site>/api/auth/callback` to Supabase's allowed redirect URLs.
 3. Add yourself as the first admin:
    ```sql

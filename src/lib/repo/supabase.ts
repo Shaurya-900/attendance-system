@@ -26,7 +26,9 @@ function check<T>({ data, error }: { data: T | null; error: { message: string } 
   return data as T;
 }
 
-const sb = () => createAdminClient();
+// One client per server instance: creating one per query costs time on every call.
+let client: ReturnType<typeof createAdminClient> | undefined;
+const sb = () => (client ??= createAdminClient());
 
 const PAGE_SIZE = 1000;
 
@@ -74,6 +76,16 @@ export const supabaseRepo: Repo = {
   async listAttendanceForMeeting(meetingId) { return (await fetchAll(() => sb().from("attendance").select().eq("meeting_id", meetingId).order("user_id"))).map(toAttendance); },
   async listAttendanceForUser(userId) { return (await fetchAll(() => sb().from("attendance").select().eq("user_id", userId).order("meeting_id"))).map(toAttendance); },
   async listAllAttendance() { return (await fetchAll(() => sb().from("attendance").select().order("meeting_id").order("user_id"))).map(toAttendance); },
+  async getAttendance(meetingId, userId) {
+    const r = check(await sb().from("attendance").select().eq("meeting_id", meetingId).eq("user_id", userId).maybeSingle());
+    return r ? toAttendance(r) : null;
+  },
+  async checkedInCounts() {
+    const rows = await fetchAll(() => sb().from("attendance").select("meeting_id").in("status", ["present", "late"]).order("meeting_id").order("user_id"));
+    const counts = new Map<string, number>();
+    for (const r of rows) counts.set(r.meeting_id, (counts.get(r.meeting_id) ?? 0) + 1);
+    return counts;
+  },
   async insertAttendance(a) {
     const { error } = await sb().from("attendance").insert(fromAttendance(a));
     if (!error) return "ok";
@@ -83,11 +95,17 @@ export const supabaseRepo: Repo = {
     throw new Error(error.message);
   },
   async upsertAttendance(a) { check(await sb().from("attendance").upsert(fromAttendance(a))); },
+  async insertMissingAttendance(rows) {
+    for (let i = 0; i < rows.length; i += PAGE_SIZE) {
+      check(await sb().from("attendance").upsert(rows.slice(i, i + PAGE_SIZE).map(fromAttendance), { onConflict: "meeting_id,user_id", ignoreDuplicates: true }));
+    }
+  },
 
   async listExcuses(filter = {}) {
     return (await fetchAll(() => {
       let q = sb().from("excuses").select();
       if (filter.userId) q = q.eq("user_id", filter.userId);
+      if (filter.meetingId) q = q.eq("meeting_id", filter.meetingId);
       if (filter.status) q = q.eq("status", filter.status);
       return q.order("created_at", { ascending: false }).order("id");
     })).map(toExcuse);
@@ -134,6 +152,9 @@ export const supabaseRepo: Repo = {
       if (groupId) q = q.eq("group_id", groupId);
       return q.order("group_id").order("user_id");
     })).map(toGroupMember);
+  },
+  async listMembershipsForUser(userId) {
+    return check(await sb().from("group_members").select().eq("user_id", userId)).map(toGroupMember);
   },
   async setGroupMember(groupId, userId, role) {
     check(await sb().from("group_members").upsert({ group_id: groupId, user_id: userId, role }, { onConflict: "group_id,user_id" }));

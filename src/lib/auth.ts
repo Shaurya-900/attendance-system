@@ -59,8 +59,8 @@ export interface StaffContext {
 
 /** Admins, or members who lead at least one group. Leads only get their own groups' meetings. */
 const ledGroupIdsFor = cache(async (userId: string): Promise<Set<string>> => {
-  const memberships = await getRepo().listGroupMembers();
-  return new Set(memberships.filter((m) => m.userId === userId && m.role === "lead").map((m) => m.groupId));
+  const memberships = await getRepo().listMembershipsForUser(userId);
+  return new Set(memberships.filter((m) => m.role === "lead").map((m) => m.groupId));
 });
 
 export async function getStaff(user: Profile): Promise<StaffContext> {

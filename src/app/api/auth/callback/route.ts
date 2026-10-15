@@ -27,10 +27,12 @@ export async function GET(req: NextRequest) {
     await supabase.auth.signOut();
     return fail("inactive");
   }
-  if (!existing) {
-    await repo.upsertProfile({ id: data.user.id, email, name: roster!.name, rollNo: roster!.rollNo, role: roster!.role, active: true });
-    if (roster!.role === "member" && roster!.addedAt) await backfillAbsences(repo, data.user.id, roster!.addedAt);
-  }
-  const passkey = await repo.getPasskeyByUser(data.user.id);
+  const [passkey] = await Promise.all([
+    repo.getPasskeyByUser(data.user.id),
+    !existing && (async () => {
+      await repo.upsertProfile({ id: data.user.id, email, name: roster!.name, rollNo: roster!.rollNo, role: roster!.role, active: true });
+      if (roster!.role === "member" && roster!.addedAt) await backfillAbsences(repo, data.user.id, roster!.addedAt);
+    })(),
+  ]);
   return NextResponse.redirect(new URL(passkey ? next : `/onboard?next=${encodeURIComponent(next)}`, url.origin));
 }

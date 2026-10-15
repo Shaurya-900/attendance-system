@@ -65,3 +65,16 @@ describe("untagged strike adjustments", () => {
     expect(s.points).toBe(1);
   });
 });
+
+describe("closing a meeting never overwrites a record", () => {
+  it("keeps a check-in that landed while the meeting was closing", async () => {
+    const [, alice] = await repo.listProfiles();
+    const m = await repo.createMeeting({ title: "Race", startsAt: new Date().toISOString(), graceMinutes: 10, groupId: null, createdBy: "user-0" });
+    await repo.setMeetingStatus(m.id, "live");
+    const present = { meetingId: m.id, userId: alice.id, status: "present" as const, checkedInAt: new Date().toISOString(), credentialId: "c", deviceId: "d", source: "qr" as const, flags: [] };
+    // The check-in lands after close has read the records but before it writes absentees.
+    await repo.insertAttendance(present);
+    await repo.insertMissingAttendance([{ ...present, status: "absent", checkedInAt: null, credentialId: null, deviceId: null, source: "manual" }]);
+    expect((await repo.getAttendance(m.id, alice.id))?.status).toBe("present");
+  });
+});

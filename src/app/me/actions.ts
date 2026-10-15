@@ -21,13 +21,17 @@ export async function requestExcuse(_prev: ExcuseState, formData: FormData): Pro
   const repo = getRepo();
   const meeting = await repo.getMeeting(meetingId);
   if (!meeting) return { error: "That meeting no longer exists." };
-  if (meeting.groupId && !(await repo.listGroupMembers(meeting.groupId)).some((m) => m.userId === user.id)) {
+  if (Date.now() > new Date(meeting.startsAt).getTime() + EXCUSE_WINDOW_MS) return { error: "Excuses close 24 hours after the meeting starts." };
+  const [memberships, attended, excuses] = await Promise.all([
+    meeting.groupId ? repo.listMembershipsForUser(user.id) : [],
+    repo.getAttendance(meetingId, user.id),
+    repo.listExcuses({ userId: user.id, meetingId }),
+  ]);
+  if (meeting.groupId && !memberships.some((m) => m.groupId === meeting.groupId)) {
     return { error: "You're not in the group this meeting is for." };
   }
-  if (Date.now() > new Date(meeting.startsAt).getTime() + EXCUSE_WINDOW_MS) return { error: "Excuses close 24 hours after the meeting starts." };
-  const attended = (await repo.listAttendanceForUser(user.id)).find((a) => a.meetingId === meetingId);
   if (attended && attended.status !== "absent") return { error: "You don't need an excuse for this meeting." };
-  if ((await repo.listExcuses({ userId: user.id })).some((e) => e.meetingId === meetingId)) return { error: "You've already sent an excuse for this meeting." };
+  if (excuses.length > 0) return { error: "You've already sent an excuse for this meeting." };
   await repo.createExcuse({ meetingId, userId: user.id, reason });
   refreshAll();
   return { ok: "Excuse sent. An admin will review it." };
