@@ -28,7 +28,8 @@ export async function POST(req: NextRequest) {
     const group = await repo.getGroup(meeting.groupId);
     return NextResponse.json({ error: `This meeting is only for ${group?.name ?? "a specific group"}.` }, { status: 403 });
   }
-  if (existing) return NextResponse.json({ alreadyCheckedIn: true, status: existing.status });
+  // An absence or excuse doesn't count as checked in: the member can still check in and replace it.
+  if (existing && (existing.status === "present" || existing.status === "late")) return NextResponse.json({ alreadyCheckedIn: true, status: existing.status });
   if (!passkey) return NextResponse.json({ error: "Register your phone first.", needsOnboarding: true }, { status: 400 });
 
   const options = await authenticationOptions(passkey);

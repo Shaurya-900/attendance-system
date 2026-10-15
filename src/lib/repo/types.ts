@@ -36,7 +36,7 @@ export interface Repo {
   getAttendance(meetingId: string, userId: string): Promise<Attendance | null>;
   /** Number of present/late check-ins per meeting id. */
   checkedInCounts(): Promise<Map<string, number>>;
-  /** Insert a QR check-in; never overwrites. */
+  /** Insert a QR check-in. Never overwrites a present/late record; replaces an absence or excuse (they turned up after all). */
   insertAttendance(a: Attendance): Promise<InsertAttendanceResult>;
   /** Create or replace (admin overrides, meeting close, excuses). */
   upsertAttendance(a: Attendance): Promise<void>;

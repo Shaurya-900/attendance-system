@@ -109,9 +109,10 @@ export const memoryRepo: Repo = {
   },
   async insertAttendance(a) {
     const rows = db().attendance.filter((x) => x.meetingId === a.meetingId);
-    if (rows.some((x) => x.userId === a.userId)) return "duplicate_user";
-    if (a.source === "qr" && a.deviceId && rows.some((x) => x.source === "qr" && x.deviceId === a.deviceId)) return "duplicate_device";
-    db().attendance.push(clone(a));
+    const mine = rows.find((x) => x.userId === a.userId);
+    if (mine && mine.status !== "absent" && mine.status !== "excused") return "duplicate_user";
+    if (a.source === "qr" && a.deviceId && rows.some((x) => x !== mine && x.source === "qr" && x.deviceId === a.deviceId)) return "duplicate_device";
+    if (mine) Object.assign(mine, clone(a)); else db().attendance.push(clone(a));
     return "ok";
   },
   async upsertAttendance(a) {

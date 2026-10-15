@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 
-export type ReceiptData = { status: "present" | "late"; title: string; name: string; clock: string; date: string; already?: boolean };
+/** `clock` is null when a lead marked them in by hand. */
+export type ReceiptData = { status: "present" | "late"; title: string; name: string; clock: string | null; date: string; already?: boolean };
 
 /** The whole screen becomes the register page, stamped PRESENT (register ink) or LATE (pencil). */
 export function Receipt({ status, title, name, clock, date, already = false }: ReceiptData) {
@@ -24,20 +25,21 @@ export function Receipt({ status, title, name, clock, date, already = false }: R
           <text className="stamp-rim"><textPath href="#stamp-top" startOffset="50%" textAnchor="middle">E-CELL ATTENDANCE</textPath></text>
           <text className="stamp-rim"><textPath href="#stamp-bottom" startOffset="50%" textAnchor="middle">{date}</textPath></text>
           <text className="stamp-word" x="100" y="108" textAnchor="middle">{late ? "LATE" : "PRESENT"}</text>
-          <text className="stamp-time" x="100" y="132" textAnchor="middle">{clock.toUpperCase()}</text>
+          {clock && <text className="stamp-time" x="100" y="132" textAnchor="middle">{clock.toUpperCase()}</text>}
         </svg>
 
-        <h1 id="receipt-title" ref={heading} tabIndex={-1} className="text-3xl font-bold">{title}</h1>
+        {/* The stamp is a picture, so the heading carries the status for screen readers. */}
+        <h1 id="receipt-title" ref={heading} tabIndex={-1} className="text-3xl font-bold">{title}<span className="sr-only">: {late ? "late" : "present"}</span></h1>
         <div className="register-line">
           <span>{name}</span>
           <span className="register-mark">{late ? "late" : "present"}</span>
         </div>
         <p role="status" className="text-lg font-semibold">
-          {already ? `You were already checked in at ${clock}` : `You're checked in at ${clock}`}{late ? ", marked late." : "."}
+          {!clock ? "Your lead marked you in." : already ? `You were already checked in at ${clock}.` : `You're checked in at ${clock}.`}
         </p>
         {late && <p className="muted">Late doesn&apos;t count as a strike. You can put your phone away.</p>}
         {!late && <p className="muted">That&apos;s it. You can put your phone away.</p>}
-        <Link href="/me" className="btn-ghost">View my attendance</Link>
+        <Link href="/me" className="btn-ghost btn-tall">View my attendance</Link>
       </div>
     </section>
   );

@@ -97,12 +97,22 @@ export const supabaseRepo: Repo = {
     return counts;
   },
   async insertAttendance(a) {
+    const conflict = (e: { code?: string; message: string }) =>
+      e.code === "23505" ? (e.message.includes("attendance_meeting_device_uniq") ? "duplicate_device" : "duplicate_user") : null;
     const { error } = await sb().from("attendance").insert(fromAttendance(a));
     if (!error) return "ok";
-    if ((error as { code?: string }).code === "23505") {
-      return error.message.includes("attendance_meeting_device_uniq") ? "duplicate_device" : "duplicate_user";
+    const first = conflict(error);
+    if (!first) throw new Error(error.message);
+    if (first === "duplicate_device") return first;
+    // Already has a row: replace it only if it's an absence or excuse (they turned up after all).
+    const { data, error: updateError } = await sb().from("attendance").update(fromAttendance(a))
+      .eq("meeting_id", a.meetingId).eq("user_id", a.userId).in("status", ["absent", "excused"]).select("user_id");
+    if (updateError) {
+      const second = conflict(updateError);
+      if (second) return second;
+      throw new Error(updateError.message);
     }
-    throw new Error(error.message);
+    return data?.length ? "ok" : "duplicate_user";
   },
   async upsertAttendance(a) { check(await sb().from("attendance").upsert(fromAttendance(a))); },
   async insertMissingAttendance(rows) {

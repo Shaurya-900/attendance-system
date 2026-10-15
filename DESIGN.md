@@ -6,7 +6,7 @@ colors:
   register-ink-soft: "#e6ebfb"
   red-pen: "#c62f28"
   red-pen-soft: "#fbe9e7"
-  pencil: "#9a6408"
+  pencil: "#925f07"
   pencil-soft: "#fbf1dc"
   blue-black-ink: "#151b34"
   faded-ink: "#5b6380"
@@ -162,7 +162,7 @@ A register on paper: one ink blue that means "present", a red pen that means "ab
 - **Red Pen** (#c62f28): absences, strikes and errors. Fills the punched strike holes, colours absent and flagged badges, error alerts, device flags, and the red margin line on a member's own history table. Its tint **Red Wash** (#fbe9e7) backs those badges and alerts.
 
 ### Tertiary
-- **Pencil** (#9a6408): late check-ins and warnings (2 strikes). Late badges, warning badges and warning alerts, on **Pencil Wash** (#fbf1dc).
+- **Pencil** (#925f07): late check-ins and warnings (2 strikes). Late badges, warning badges and warning alerts, on **Pencil Wash** (#fbf1dc).
 
 ### Neutral
 - **Blue-Black Ink** (#151b34): all body text and headings.
@@ -261,14 +261,14 @@ Under the stamp: the meeting name as the heading, a register line (member name o
 The stamp is the app's one orchestrated moment: it is pressed on in 0.45s with an exponential ease-out (`cubic-bezier(.16, 1, .3, 1)`), from 1.35× scale, -16° and a 2px blur to rest. It starts fully visible. Revisiting an existing check-in shows the stamp already in place, and reduced-motion users never see it move.
 
 ### Check-in Screen
-One column, max 28rem. The meeting name is the heading, with the group and start time under it. A pencil alert warns before the tap when the member will be marked late. On phones the Check in button and its helper text sit low in the thumb zone; on wider screens they follow the heading. While waiting for the fingerprint the button keeps full contrast and shows a small spinning ring. Dead ends (no code, expired code, not open yet, closed, wrong group, phone just registered) are notices: a headline, one alert with the next step, and a "Go to my attendance" button.
+One column, max 28rem. The meeting name is the heading, with the group, start time and minutes since the start under it. A pencil alert warns before the tap when the member will be marked late, and the Check in button itself turns Pencil. Between the heading and the button sits the member's line in the register: a ruled card (same paper as the receipt) with their name and a dashed line ending in "sign here", or "late" in pencil. It fills the space so the button stays low in the thumb zone on phones; on wider screens the button follows it. While working, the button keeps full contrast with a small spinning ring and names the step: "Getting ready…", "Confirm with your fingerprint", "Saving…". Errors appear above the button so it never moves under the thumb. Help and "Sign out and switch account" live in a "No fingerprint prompt, or not you?" disclosure. Dead ends (no code, expired code, not open yet, closed, wrong group, phone just registered) are notices: a headline, one alert with the next step, and a "Go to my attendance" button.
 
 ## Do's and Don'ts
 
 ### Do:
 - **Do** take every colour from the CSS variables in `src/app/globals.css` (`--accent`, `--red`, `--pencil`, `--muted`, `--border`, …) so dark mode follows automatically.
 - **Do** keep status as ink on its own wash: present blue, late pencil, absent red, excused grey.
-- **Do** keep tap targets at least 2.75rem tall for primary actions and 2.25rem for secondary ones.
+- **Do** keep tap targets at least 2.75rem tall for primary actions and for the one secondary action on a phone-first screen (`btn-tall`); 2.25rem is the floor elsewhere.
 - **Do** separate surfaces with 1px Ruled Line borders and white-on-paper contrast.
 - **Do** use tabular figures for any count.
 - **Do** reuse the `.card`, `.btn`, `.btn-ghost`, `.input`, `.alert` classes and the `StrikeHoles` / badge components before writing new styles.
