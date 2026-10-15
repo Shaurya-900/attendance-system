@@ -73,7 +73,7 @@ test("proxy-proof check-in flow", async ({ browser, baseURL }) => {
   await expect(admin.getByRole("row", { name: /Bob Member/ })).toContainText("absent");
   await expect(admin.getByRole("row", { name: /Alice Member/ })).toContainText("present");
   await alicePhone.goto("/me");
-  await expect(alicePhone.getByText("1 pts · Good standing")).toBeVisible();
+  await expect(alicePhone.getByText("1 pts, good standing")).toBeVisible();
 
   // Suspected proxy shows on the admin dashboard.
   await admin.goto("/admin");

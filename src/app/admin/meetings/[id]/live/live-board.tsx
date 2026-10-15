@@ -20,6 +20,7 @@ export function LiveBoard({ meetingId }: { meetingId: string }) {
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
     let cancelled = false;
+    let lastUrl: string | null = null;
     async function tick() {
       try {
         const res = await fetch(`/api/admin/meetings/${meetingId}/live`, { cache: "no-store" });
@@ -28,7 +29,12 @@ export function LiveBoard({ meetingId }: { meetingId: string }) {
         if (cancelled) return;
         setData(json);
         setError(null);
-        setImg(json.qr ? await QRCode.toDataURL(json.qr.url, { width: 720, margin: 1, errorCorrectionLevel: "M" }) : null);
+        // Only re-encode when the token actually rotated, not on every attendee-list poll.
+        const url = json.qr?.url ?? null;
+        if (url !== lastUrl) {
+          lastUrl = url;
+          setImg(url ? await QRCode.toDataURL(url, { width: 720, margin: 1, errorCorrectionLevel: "M" }) : null);
+        }
         // Refresh right after the token rotates, and at least every 3s for the attendee list.
         timer = setTimeout(tick, Math.min(3000, (json.qr?.refreshInMs ?? 3000) + 100));
       } catch (e) {
@@ -51,8 +57,8 @@ export function LiveBoard({ meetingId }: { meetingId: string }) {
         ) : (
           <p className="muted py-20">Check-in is {data.status === "closed" ? "closed" : "not started"}. <Link className="underline" href={`/admin/meetings/${meetingId}`}>Back</Link></p>
         )}
-        <p className="muted text-sm">Scan with your phone camera · code changes every 10s · confirm with fingerprint</p>
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        <p className="muted text-sm">Scan with your phone camera, then confirm with your fingerprint. The code changes every 10 seconds.</p>
+        {error && <p className="text-sm text-[var(--red)]">{error}</p>}
       </div>
       <div className="card space-y-2">
         <div className="text-3xl font-bold" data-testid="live-count">{data.checkedIn.length} / {data.total}</div>
@@ -61,8 +67,8 @@ export function LiveBoard({ meetingId }: { meetingId: string }) {
           {data.checkedIn.map((c, i) => (
             <li key={i}>
               {c.name}
-              {c.status === "late" && <span className="ml-1 text-amber-600">late</span>}
-              {c.flags.length > 0 && <span className="ml-1 rounded bg-red-600 px-1 text-[10px] font-bold uppercase text-white">{c.flags.join(", ").replace(/_/g, " ")}</span>}
+              {c.status === "late" && <span className="ml-1 text-[var(--pencil)]">late</span>}
+              {c.flags.length > 0 && <span className="ml-1 rounded border border-[var(--red)] px-1 text-[11px] font-semibold text-[var(--red)]">{c.flags.join(", ").replace(/_/g, " ")}</span>}
             </li>
           ))}
         </ul>

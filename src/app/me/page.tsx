@@ -1,4 +1,4 @@
-import { fmt, GroupBadge, LevelBadge, StatusBadge } from "@/components/ui";
+import { fmt, GroupBadge, LevelBadge, StatusBadge, StrikeHoles } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
 import { EXCUSE_WINDOW_MS, scopeLabel, standingsForUser } from "@/lib/meetings";
 import { getRepo } from "@/lib/repo";
@@ -30,7 +30,7 @@ export default async function MePage() {
       <h1 className="text-2xl font-bold">My attendance</h1>
 
       {scopes.map((s) => s.summary.level !== "ok" && (
-        <p key={`warn-${s.group?.id ?? "all"}`} role="alert" className={`rounded-lg p-3 text-sm ${s.summary.level === "flagged" ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-900"}`}>
+        <p key={`warn-${s.group?.id ?? "all"}`} role="alert" className={`alert ${s.summary.level === "flagged" ? "alert-error" : "alert-warn"}`}>
           <strong>{scopeLabel(s)}:</strong>{" "}
           {s.summary.level === "flagged"
             ? `You've reached ${FLAGGED_AT} strikes. The core team will review this.`
@@ -40,15 +40,18 @@ export default async function MePage() {
 
       <div className="grid gap-3 sm:grid-cols-2">
         {scopes.map((s) => (
-          <section key={s.group?.id ?? "all"} className="card space-y-2">
+          <section key={s.group?.id ?? "all"} className="card space-y-4">
             <div className="flex items-center justify-between gap-2">
               <h2 className="font-semibold">{scopeLabel(s)}</h2>
               <LevelBadge level={s.summary.level} points={s.summary.points} />
             </div>
-            <div className="grid grid-cols-3 gap-2 text-center text-sm">
-              {[["Absences", s.summary.absences], ["Lates", s.summary.lates], ["Excused", s.summary.excused]].map(([k, v]) => (
-                <div key={k}><div className="text-xl font-bold">{v}</div><div className="muted text-xs">{k}</div></div>
-              ))}
+            <div className="flex items-end justify-between gap-4">
+              <StrikeHoles points={s.summary.points} size="2.25rem" />
+              <dl className="flex gap-4 text-right text-sm">
+                {[["Absences", s.summary.absences], ["Lates", s.summary.lates], ["Excused", s.summary.excused]].map(([k, v]) => (
+                  <div key={k} className="flex flex-col-reverse"><dt className="muted text-xs">{k}</dt><dd className="text-xl font-bold">{v}</dd></div>
+                ))}
+              </dl>
             </div>
           </section>
         ))}
@@ -65,7 +68,7 @@ export default async function MePage() {
       )}
 
       <div className="card overflow-x-auto">
-        <table className="data">
+        <table className="data register">
           <thead><tr><th>Meeting</th><th>For</th><th>When</th><th>Status</th><th>Excuse</th></tr></thead>
           <tbody>
             {meetings.map((m) => {

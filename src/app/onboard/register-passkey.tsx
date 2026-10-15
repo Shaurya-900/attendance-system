@@ -35,7 +35,7 @@ export function RegisterPasskey({ next }: { next: string }) {
   return (
     <div className="space-y-3">
       <button onClick={register} disabled={busy} className="btn w-full py-3 text-base">{busy ? "Waiting for your phone…" : "Register this phone"}</button>
-      {error && <p role="alert" className="rounded-lg bg-red-100 p-3 text-sm text-red-800">{error}</p>}
+      {error && <p role="alert" className="alert alert-error">{error}</p>}
     </div>
   );
 }

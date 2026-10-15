@@ -45,8 +45,10 @@ export function CheckIn({ ticket }: { ticket: string }) {
 
   if (state.kind === "done") {
     return (
-      <div role="status" className="card space-y-2 text-center">
-        <div className="text-5xl">✓</div>
+      <div role="status" className="card space-y-4 py-8 text-center">
+        <div className="stamp" aria-hidden="true">
+          <span className="text-2xl font-extrabold tracking-tight">Present</span>
+        </div>
         <p className="font-semibold">{state.message}</p>
         <Link href="/me" className="btn-ghost">View my attendance</Link>
       </div>
@@ -57,7 +59,7 @@ export function CheckIn({ ticket }: { ticket: string }) {
       <button onClick={checkIn} disabled={state.kind === "busy"} className="btn w-full py-4 text-lg">
         {state.kind === "busy" ? "Confirm on your phone…" : "Check in"}
       </button>
-      {state.kind === "error" && <p role="alert" className="rounded-lg bg-red-100 p-3 text-sm text-red-800">{state.message}</p>}
+      {state.kind === "error" && <p role="alert" className="alert alert-error">{state.message}</p>}
     </div>
   );
 }
