@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef } from "react";
+import { useActionState, useRef } from "react";
 import { useFormStatus } from "react-dom";
+import { FormMessage } from "@/components/form-message";
 import { createMeeting } from "../actions";
 
 function CreateButton() {
@@ -11,9 +12,10 @@ function CreateButton() {
 
 export function NewMeetingForm({ audiences }: { audiences: { id: string; label: string }[] }) {
   const hidden = useRef<HTMLInputElement>(null);
+  const [state, action] = useActionState(createMeeting, null);
   return (
     <form
-      action={createMeeting}
+      action={action}
       onSubmit={(e) => {
         const local = (e.currentTarget.elements.namedItem("local") as HTMLInputElement).value;
         hidden.current!.value = new Date(local).toISOString();
@@ -44,6 +46,7 @@ export function NewMeetingForm({ audiences }: { audiences: { id: string; label: 
       <p className="muted text-xs">Check-ins more than this many minutes after the start are marked late. Late is shown in the records but is not a strike.</p>
       <input ref={hidden} type="hidden" name="startsAt" />
       <CreateButton />
+      <FormMessage state={state} />
     </form>
   );
 }

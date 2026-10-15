@@ -4,7 +4,8 @@ import { Flags, fmt, GroupBadge, StatusBadge } from "@/components/ui";
 import { canManageGroup, requireStaff } from "@/lib/auth";
 import { expectedFrom } from "@/lib/meetings";
 import { getRepo } from "@/lib/repo";
-import { endMeeting, overrideAttendance, startMeeting } from "../../actions";
+import { ConfirmForm } from "@/components/confirm-form";
+import { deleteMeeting, endMeeting, overrideAttendance, startMeeting } from "../../actions";
 
 export default async function MeetingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -43,6 +44,13 @@ export default async function MeetingPage({ params }: { params: Promise<{ id: st
           <form action={endMeeting}><input type="hidden" name="meetingId" value={id} /><button className="btn-ghost">Mark remaining absentees</button></form>
         )}
         <a className="btn-ghost" href={`/api/admin/export?meeting=${id}`}>Export CSV</a>
+        <ConfirmForm
+          action={deleteMeeting}
+          fields={{ meetingId: id }}
+          label="Delete meeting"
+          className="btn-ghost text-red-700 dark:text-red-400"
+          confirm={`Delete "${meeting.title}"? Its attendance and excuses are removed too, and any strikes from it disappear. This can't be undone.`}
+        />
       </div>
 
       <div className="card overflow-x-auto">

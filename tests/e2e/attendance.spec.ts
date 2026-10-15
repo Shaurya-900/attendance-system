@@ -230,3 +230,35 @@ test("admin can delete a group and a member", async ({ browser, baseURL }) => {
   await expect(admin.getByRole("article", { name: "Bob Member" })).toHaveCount(0);
   await expect(admin.getByRole("article", { name: "Core Admin" }).getByRole("button", { name: "Delete" })).toHaveCount(0);
 });
+
+test("a member can be removed from a group", async ({ browser, baseURL }) => {
+  const admin = await asAdmin(await browser.newContext(), baseURL!);
+  await admin.goto("/admin/groups");
+  await admin.getByPlaceholder(/e\.g\. Marketing/).fill("Removal team");
+  await admin.getByRole("button", { name: "Create" }).click();
+  await expect(admin.getByRole("heading", { name: "Removal team" })).toBeVisible();
+  await admin.getByLabel(/Carol Member/).check();
+  await admin.getByRole("button", { name: "Add to group" }).click();
+  await expect(admin.getByRole("status")).toContainText("Added 1 member");
+
+  const carol = admin.getByRole("row", { name: /Carol Member/ });
+  await expect(carol).toBeVisible();
+  await carol.getByRole("button", { name: "Remove" }).click();
+  await expect(admin.getByRole("row", { name: /Carol Member/ })).toHaveCount(0);
+  // She can be added again.
+  await expect(admin.getByLabel(/Carol Member/)).toBeVisible();
+});
+
+test("a meeting can be deleted", async ({ browser, baseURL }) => {
+  const admin = await asAdmin(await browser.newContext(), baseURL!);
+  admin.on("dialog", (d) => d.accept());
+  await admin.goto("/admin/meetings");
+  await admin.getByPlaceholder("Meeting title").fill("Mistake meeting");
+  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000).toISOString().slice(0, 10);
+  await admin.getByLabel("Starts at").fill(`${today}T09:00`);
+  await admin.getByRole("button", { name: "Create" }).click();
+  await expect(admin.getByRole("heading", { name: "Mistake meeting" })).toBeVisible();
+  await admin.getByRole("button", { name: "Delete meeting" }).click();
+  await admin.waitForURL(/\/admin\/meetings$/);
+  await expect(admin.getByRole("link", { name: "Mistake meeting" })).toHaveCount(0);
+});

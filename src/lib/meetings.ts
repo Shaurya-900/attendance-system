@@ -132,14 +132,32 @@ function scopesFor(userId: string, d: StandingData, semester: Semester | null, b
   return scopes;
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * UTC instants that safely cover a semester's local dates in any timezone (a day of slack on
+ * each side). computeStrikes still applies the exact local-date check.
+ */
+export function semesterRange(s: Semester): [string, string] {
+  const from = Date.parse(`${s.startsOn}T00:00:00Z`) - DAY_MS;
+  const to = Date.parse(`${s.endsOn}T00:00:00Z`) + 2 * DAY_MS;
+  return [new Date(from).toISOString(), new Date(to).toISOString()];
+}
+
 /**
  * Strike standings in the current semester (or all time when none is configured).
  * Full body and every group keep separate counts; `byUser` maps each profile to the full-body
  * scope first, followed by one scope per group they belong to.
  */
 export async function standings(repo: Repo): Promise<{ semester: Semester | null; byUser: Map<string, ScopeStanding[]> }> {
+  const semestersP = repo.listSemesters();
+  // Only the current semester's records count, so don't load older ones.
+  const attendanceP = semestersP.then((all) => {
+    const s = currentSemester(all, env.timezone);
+    return s ? repo.listAttendanceBetween(...semesterRange(s)) : repo.listAllAttendance();
+  });
   const [meetings, attendance, adjustments, semesters, profiles, groups, memberships] = await Promise.all([
-    repo.listMeetings(), repo.listAllAttendance(), repo.listAdjustments(), repo.listSemesters(), repo.listProfiles(),
+    repo.listMeetings(), attendanceP, repo.listAdjustments(), semestersP, repo.listProfiles(),
     repo.listGroups(), repo.listGroupMembers(),
   ]);
   const semester = currentSemester(semesters, env.timezone);

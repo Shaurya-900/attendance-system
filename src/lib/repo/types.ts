@@ -25,10 +25,14 @@ export interface Repo {
   getMeeting(id: string): Promise<Meeting | null>;
   createMeeting(input: { title: string; startsAt: string; graceMinutes: number; groupId: string | null; createdBy: string }): Promise<Meeting>;
   setMeetingStatus(id: string, status: MeetingStatus): Promise<void>;
+  /** Deletes the meeting together with its attendance and excuses. */
+  deleteMeeting(id: string): Promise<void>;
 
   listAttendanceForMeeting(meetingId: string): Promise<Attendance[]>;
   listAttendanceForUser(userId: string): Promise<Attendance[]>;
   listAllAttendance(): Promise<Attendance[]>;
+  /** Records for meetings starting in [fromIso, toIso). */
+  listAttendanceBetween(fromIso: string, toIso: string): Promise<Attendance[]>;
   getAttendance(meetingId: string, userId: string): Promise<Attendance | null>;
   /** Number of present/late check-ins per meeting id. */
   checkedInCounts(): Promise<Map<string, number>>;

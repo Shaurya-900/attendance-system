@@ -87,10 +87,20 @@ export const memoryRepo: Repo = {
     return clone(m);
   },
   async setMeetingStatus(id, status) { const m = db().meetings.find((x) => x.id === id); if (m) m.status = status; },
+  async deleteMeeting(id) {
+    const s = db();
+    s.meetings = s.meetings.filter((m) => m.id !== id);
+    s.attendance = s.attendance.filter((a) => a.meetingId !== id);
+    s.excuses = s.excuses.filter((e) => e.meetingId !== id);
+  },
 
   async listAttendanceForMeeting(meetingId) { return clone(db().attendance.filter((a) => a.meetingId === meetingId)); },
   async listAttendanceForUser(userId) { return clone(db().attendance.filter((a) => a.userId === userId)); },
   async listAllAttendance() { return clone(db().attendance); },
+  async listAttendanceBetween(fromIso, toIso) {
+    const ids = new Set(db().meetings.filter((m) => m.startsAt >= fromIso && m.startsAt < toIso).map((m) => m.id));
+    return clone(db().attendance.filter((a) => ids.has(a.meetingId)));
+  },
   async getAttendance(meetingId, userId) { return clone(db().attendance.find((a) => a.meetingId === meetingId && a.userId === userId) ?? null); },
   async checkedInCounts() {
     const counts = new Map<string, number>();

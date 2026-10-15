@@ -78,3 +78,33 @@ describe("closing a meeting never overwrites a record", () => {
     expect((await repo.getAttendance(m.id, alice.id))?.status).toBe("present");
   });
 });
+
+describe("strike counts only load the current semester", () => {
+  it("covers the semester's dates with a day of slack for timezones", async () => {
+    const { semesterRange } = await import("@/lib/meetings");
+    expect(semesterRange({ id: "s", name: "S", startsOn: "2026-07-01", endsOn: "2026-12-31" }))
+      .toEqual(["2026-06-30T00:00:00.000Z", "2027-01-02T00:00:00.000Z"]);
+  });
+
+  it("loads records only for meetings in the range", async () => {
+    const [, alice] = await repo.listProfiles();
+    const old = await repo.createMeeting({ title: "Old", startsAt: "2001-03-01T10:00:00.000Z", graceMinutes: 10, groupId: null, createdBy: "user-0" });
+    const now = await repo.createMeeting({ title: "Now", startsAt: "2001-09-01T10:00:00.000Z", graceMinutes: 10, groupId: null, createdBy: "user-0" });
+    await repo.insertMissingAttendance([old, now].map((m) => ({ meetingId: m.id, userId: alice.id, status: "absent" as const, checkedInAt: null, credentialId: null, deviceId: null, source: "manual" as const, flags: [] })));
+    const rows = await repo.listAttendanceBetween("2001-07-01T00:00:00.000Z", "2002-01-01T00:00:00.000Z");
+    expect(rows.map((r) => r.meetingId)).toEqual([now.id]);
+  });
+});
+
+describe("deleting a meeting", () => {
+  it("removes its attendance and excuses", async () => {
+    const [, alice] = await repo.listProfiles();
+    const m = await repo.createMeeting({ title: "Gone", startsAt: new Date().toISOString(), graceMinutes: 10, groupId: null, createdBy: "user-0" });
+    await repo.upsertAttendance({ meetingId: m.id, userId: alice.id, status: "absent", checkedInAt: null, credentialId: null, deviceId: null, source: "manual", flags: [] });
+    await repo.createExcuse({ meetingId: m.id, userId: alice.id, reason: "Sick" });
+    await repo.deleteMeeting(m.id);
+    expect(await repo.getMeeting(m.id)).toBeNull();
+    expect(await repo.listAttendanceForMeeting(m.id)).toHaveLength(0);
+    expect(await repo.listExcuses({ meetingId: m.id })).toHaveLength(0);
+  });
+});

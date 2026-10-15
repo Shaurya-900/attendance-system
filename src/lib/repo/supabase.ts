@@ -42,6 +42,9 @@ export async function fetchAll(query: () => any): Promise<Row[]> {
   }
 }
 
+/** True when a database function hasn't been created yet (its migration wasn't run). */
+const missingFunction = (error: { code?: string }) => error.code === "PGRST202";
+
 export const supabaseRepo: Repo = {
   async getProfile(id) { const r = check(await sb().from("profiles").select().eq("id", id).maybeSingle()); return r ? toProfile(r) : null; },
   async listProfiles() { return (await fetchAll(() => sb().from("profiles").select().order("name").order("id"))).map(toProfile); },
@@ -72,10 +75,17 @@ export const supabaseRepo: Repo = {
     return toMeeting(check(await sb().from("meetings").insert({ title: input.title, starts_at: input.startsAt, grace_minutes: input.graceMinutes, group_id: input.groupId, created_by: input.createdBy }).select().single()));
   },
   async setMeetingStatus(id, status) { check(await sb().from("meetings").update({ status }).eq("id", id)); },
+  // One statement, so it's all-or-nothing; attendance and excuses cascade.
+  async deleteMeeting(id) { check(await sb().from("meetings").delete().eq("id", id)); },
 
   async listAttendanceForMeeting(meetingId) { return (await fetchAll(() => sb().from("attendance").select().eq("meeting_id", meetingId).order("user_id"))).map(toAttendance); },
   async listAttendanceForUser(userId) { return (await fetchAll(() => sb().from("attendance").select().eq("user_id", userId).order("meeting_id"))).map(toAttendance); },
   async listAllAttendance() { return (await fetchAll(() => sb().from("attendance").select().order("meeting_id").order("user_id"))).map(toAttendance); },
+  async listAttendanceBetween(fromIso, toIso) {
+    return (await fetchAll(() => sb().from("attendance").select("*, meetings!inner(starts_at)")
+      .gte("meetings.starts_at", fromIso).lt("meetings.starts_at", toIso)
+      .order("meeting_id").order("user_id"))).map(toAttendance);
+  },
   async getAttendance(meetingId, userId) {
     const r = check(await sb().from("attendance").select().eq("meeting_id", meetingId).eq("user_id", userId).maybeSingle());
     return r ? toAttendance(r) : null;
@@ -162,12 +172,19 @@ export const supabaseRepo: Repo = {
   async removeGroupMember(groupId, userId) { check(await sb().from("group_members").delete().eq("group_id", groupId).eq("user_id", userId)); },
 
   async deleteGroup(id) {
-    // Meetings would otherwise fall back to "full body" (group_id set null); attendance and excuses cascade.
+    const { error } = await sb().rpc("delete_group", { gid: id });
+    if (!error) return;
+    if (!missingFunction(error)) throw new Error(error.message);
+    // Fallback until migration 0007 is run. Meetings would otherwise fall back to "full body"; attendance and excuses cascade.
     check(await sb().from("meetings").delete().eq("group_id", id));
     check(await sb().from("strike_adjustments").delete().eq("group_id", id));
     check(await sb().from("groups").delete().eq("id", id));
   },
   async deleteMember(userId) {
+    const { error: rpcError } = await sb().rpc("delete_member", { uid: userId });
+    if (!rpcError) return;
+    if (!missingFunction(rpcError)) throw new Error(rpcError.message);
+    // Fallback until migration 0007 is run.
     const r = check<Row | null>(await sb().from("profiles").select("email").eq("id", userId).maybeSingle());
     // Deleting the auth user cascades to the profile and everything that references it.
     const { error } = await sb().auth.admin.deleteUser(userId);

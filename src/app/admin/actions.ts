@@ -29,15 +29,17 @@ async function requireGroupManager(groupId: string) {
   return staff;
 }
 
-export async function createMeeting(formData: FormData) {
+export async function createMeeting(_prev: FormState, formData: FormData): Promise<FormState> {
   const staff = await requireStaff();
   const groupId = str(formData, "groupId") || null;
   if (!canManageGroup(staff, groupId)) redirect("/admin/meetings");
-  const input = z.object({
+  const parsed = z.object({
     title: z.string().min(1).max(120),
     startsAt: z.string().datetime({ offset: true }),
     graceMinutes: z.coerce.number().int().min(0).max(120),
-  }).parse({ title: str(formData, "title"), startsAt: str(formData, "startsAt"), graceMinutes: str(formData, "graceMinutes") || 10 });
+  }).safeParse({ title: str(formData, "title"), startsAt: str(formData, "startsAt"), graceMinutes: str(formData, "graceMinutes") || 10 });
+  if (!parsed.success) return { error: "Fill in a title and start time, and keep 'Mark late after' between 0 and 120 minutes." };
+  const input = parsed.data;
   const repo = getRepo();
   // A double click (or a retry on a slow connection) must not create the same meeting twice.
   const recent = Date.now() - 60_000;
@@ -60,6 +62,15 @@ export async function startMeeting(formData: FormData) {
   redirect(`/admin/meetings/${id}/live`);
 }
 
+export async function deleteMeeting(formData: FormData) {
+  const id = str(formData, "meetingId");
+  const { actorId, meeting } = await requireMeetingManager(id);
+  await getRepo().deleteMeeting(id);
+  await getRepo().addAudit({ actorId, action: "meeting.delete", target: id, details: { title: meeting.title, startsAt: meeting.startsAt, groupId: meeting.groupId } });
+  refreshAll();
+  redirect("/admin/meetings");
+}
+
 export async function endMeeting(formData: FormData) {
   const id = str(formData, "meetingId");
   const { actorId } = await requireMeetingManager(id);
@@ -72,9 +83,10 @@ export async function overrideAttendance(formData: FormData) {
   const meetingId = str(formData, "meetingId");
   const { actorId, meeting } = await requireMeetingManager(meetingId);
   const userId = str(formData, "userId");
-  const status = z.enum(["present", "late", "absent", "excused"]).parse(str(formData, "status")) as AttendanceStatus;
+  const parsedStatus = z.enum(["present", "late", "absent", "excused"]).safeParse(str(formData, "status"));
   const reason = str(formData, "reason");
-  if (!reason) return;
+  if (!parsedStatus.success || !reason) return;
+  const status: AttendanceStatus = parsedStatus.data;
   const repo = getRepo();
   const [prev, expected] = await Promise.all([repo.getAttendance(meetingId, userId), expectedMembers(repo, meeting)]);
   // Only people this meeting is for (or who already have a record), so a lead can't mark outsiders.
@@ -90,7 +102,9 @@ export async function overrideAttendance(formData: FormData) {
 
 export async function reviewExcuse(formData: FormData) {
   const id = str(formData, "excuseId");
-  const decision = z.enum(["approved", "rejected"]).parse(str(formData, "decision"));
+  const parsedDecision = z.enum(["approved", "rejected"]).safeParse(str(formData, "decision"));
+  if (!parsedDecision.success) return;
+  const decision = parsedDecision.data;
   const repo = getRepo();
   const excuse = await repo.getExcuse(id);
   if (!excuse || excuse.status !== "pending") return;
@@ -104,9 +118,10 @@ export async function reviewExcuse(formData: FormData) {
 export async function adjustStrikes(formData: FormData) {
   const admin = await requireAdmin();
   const userId = str(formData, "userId");
-  const points = z.coerce.number().min(-10).max(10).refine((n) => n !== 0).parse(str(formData, "points"));
+  const parsedPoints = z.coerce.number().min(-10).max(10).refine((n) => n !== 0).safeParse(str(formData, "points"));
   const reason = str(formData, "reason");
-  if (!reason) return;
+  if (!parsedPoints.success || !reason) return;
+  const points = parsedPoints.data;
   const semesterId = str(formData, "semesterId") || null;
   const groupId = str(formData, "groupId") || null;
   const repo = getRepo();
@@ -241,7 +256,9 @@ export async function setGroupRole(formData: FormData) {
   const admin = await requireAdmin(); // only admins appoint leads
   const groupId = str(formData, "groupId");
   const userId = str(formData, "userId");
-  const role = z.enum(["member", "lead"]).parse(str(formData, "role"));
+  const parsedRole = z.enum(["member", "lead"]).safeParse(str(formData, "role"));
+  if (!parsedRole.success) return;
+  const role = parsedRole.data;
   const repo = getRepo();
   await repo.setGroupMember(groupId, userId, role);
   await repo.addAudit({ actorId: admin.id, action: "group.set_role", target: userId, details: { groupId, role } });
