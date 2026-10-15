@@ -6,7 +6,7 @@ import { useState } from "react";
 
 type State = { kind: "idle" | "busy" } | { kind: "done"; message: string } | { kind: "error"; message: string };
 
-export function CheckIn({ meetingId, token }: { meetingId: string; token: string }) {
+export function CheckIn({ ticket }: { ticket: string }) {
   const [state, setState] = useState<State>({ kind: "idle" });
 
   async function checkIn() {
@@ -15,7 +15,7 @@ export function CheckIn({ meetingId, token }: { meetingId: string; token: string
       const optRes = await fetch("/api/checkin/options", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ meetingId, token }),
+        body: JSON.stringify({ ticket }),
       });
       const opt = await optRes.json();
       if (!optRes.ok) throw new Error(opt.error);
@@ -34,7 +34,12 @@ export function CheckIn({ meetingId, token }: { meetingId: string; token: string
         message: result.alreadyCheckedIn ? "You're already checked in." : `Checked in to ${result.meetingTitle}${result.status === "late" ? " (marked late)" : ""}.`,
       });
     } catch (e) {
-      setState({ kind: "error", message: (e as Error).message || "Check-in failed." });
+      const err = e as Error;
+      // Cancelled or timed-out fingerprint prompt, or a dropped connection: say what to do next.
+      const message = err.name === "NotAllowedError" ? "Fingerprint check was cancelled or timed out. Tap Check in to try again."
+        : err.name === "TypeError" ? "No connection. Check your internet and tap Check in again."
+        : err.message || "Check-in failed. Tap Check in to try again.";
+      setState({ kind: "error", message });
     }
   }
 
