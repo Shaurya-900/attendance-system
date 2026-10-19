@@ -1,5 +1,5 @@
 import type {
-  Attendance, AuditEntry, Excuse, Group, GroupMember, Meeting, Passkey, Profile, RosterEntry, Semester, StrikeAdjustment,
+  Attendance, AuditEntry, Excuse, Group, GroupMember, Meeting, MemberEdit, Passkey, Profile, RosterEntry, RosterGroup, Semester, StrikeAdjustment,
 } from "../types";
 import { createAdminClient } from "../supabase/admin";
 import type { Repo } from "./types";
@@ -7,7 +7,7 @@ import type { Repo } from "./types";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Row = Record<string, any>;
 
-const toProfile = (r: Row): Profile => ({ id: r.id, email: r.email, name: r.name, rollNo: r.roll_no, role: r.role, active: r.active, createdAt: r.created_at });
+const toProfile = (r: Row): Profile => ({ id: r.id, email: r.email, name: r.name, rollNo: r.roll_no, role: r.role, active: r.active, approver: r.approver ?? false, createdAt: r.created_at });
 const toRoster = (r: Row): RosterEntry => ({ email: r.email, name: r.name, rollNo: r.roll_no, role: r.role, addedAt: r.added_at });
 const toPasskey = (r: Row): Passkey => ({ userId: r.user_id, credentialId: r.credential_id, publicKey: r.public_key, counter: Number(r.counter), transports: r.transports, deviceId: r.device_id, createdAt: r.created_at });
 const toMeeting = (r: Row): Meeting => ({ id: r.id, title: r.title, startsAt: r.starts_at, graceMinutes: r.grace_minutes, status: r.status, qrSecret: r.qr_secret, groupId: r.group_id ?? null, createdBy: r.created_by, createdAt: r.created_at });
@@ -18,6 +18,8 @@ const toSemester = (r: Row): Semester => ({ id: r.id, name: r.name, startsOn: r.
 const toAdjustment = (r: Row): StrikeAdjustment => ({ id: r.id, userId: r.user_id, semesterId: r.semester_id, groupId: r.group_id ?? null, points: Number(r.points), reason: r.reason, createdBy: r.created_by, createdAt: r.created_at });
 const toGroup = (r: Row): Group => ({ id: r.id, name: r.name, kind: r.kind, endsOn: r.ends_on, archived: r.archived, createdAt: r.created_at });
 const toGroupMember = (r: Row): GroupMember => ({ groupId: r.group_id, userId: r.user_id, role: r.role, addedAt: r.added_at });
+const toRosterGroup = (r: Row): RosterGroup => ({ email: r.email, groupId: r.group_id });
+const toMemberEdit = (r: Row): MemberEdit => ({ id: r.id, targetEmail: r.target_email, changes: r.changes, requestedBy: r.requested_by, status: r.status, reviewedBy: r.reviewed_by, createdAt: r.created_at });
 const toAudit = (r: Row): AuditEntry => ({ id: r.id, actorId: r.actor_id, action: r.action, target: r.target, details: r.details, createdAt: r.created_at });
 
 /** Throws on error. For `.maybeSingle()` the result can still be null at runtime; callers check. */
@@ -49,7 +51,10 @@ export const supabaseRepo: Repo = {
   async getProfile(id) { const r = check(await sb().from("profiles").select().eq("id", id).maybeSingle()); return r ? toProfile(r) : null; },
   async listProfiles() { return (await fetchAll(() => sb().from("profiles").select().order("name").order("id"))).map(toProfile); },
   async upsertProfile(p) {
-    const r = check<Row>(await sb().from("profiles").upsert({ id: p.id, email: p.email, name: p.name, roll_no: p.rollNo, role: p.role, active: p.active }).select().single());
+    // approver is only sent when set, so sign-in keeps working on a database without migration 0008.
+    const row: Row = { id: p.id, email: p.email, name: p.name, roll_no: p.rollNo, role: p.role, active: p.active };
+    if (p.approver !== undefined) row.approver = p.approver;
+    const r = check<Row>(await sb().from("profiles").upsert(row).select().single());
     return toProfile(r);
   },
   async setProfileActive(id, active) { check(await sb().from("profiles").update({ active }).eq("id", id)); },
@@ -59,6 +64,39 @@ export const supabaseRepo: Repo = {
   async upsertRoster(entries) {
     check(await sb().from("roster").upsert(entries.map((e) => ({ email: e.email, name: e.name, roll_no: e.rollNo, role: e.role }))));
   },
+  async updateRosterEntry(oldEmail, e) {
+    check(await sb().from("roster").update({ email: e.email, name: e.name, roll_no: e.rollNo, role: e.role }).eq("email", oldEmail));
+  },
+  async updateAuthEmail(userId, email) {
+    const { error } = await sb().auth.admin.updateUserById(userId, { email, email_confirm: true });
+    if (error) throw new Error(error.message);
+  },
+
+  async listRosterGroups(filter = {}) {
+    return (await fetchAll(() => {
+      let q = sb().from("roster_groups").select();
+      if (filter.email) q = q.eq("email", filter.email);
+      if (filter.groupId) q = q.eq("group_id", filter.groupId);
+      return q.order("group_id").order("email");
+    })).map(toRosterGroup);
+  },
+  async addRosterGroup(email, groupId) {
+    check(await sb().from("roster_groups").upsert({ email, group_id: groupId }, { onConflict: "email,group_id", ignoreDuplicates: true }));
+  },
+  async removeRosterGroup(email, groupId) { check(await sb().from("roster_groups").delete().eq("email", email).eq("group_id", groupId)); },
+
+  async listMemberEdits(status) {
+    return (await fetchAll(() => {
+      let q = sb().from("member_edits").select();
+      if (status) q = q.eq("status", status);
+      return q.order("created_at", { ascending: false }).order("id");
+    })).map(toMemberEdit);
+  },
+  async getMemberEdit(id) { const r = check(await sb().from("member_edits").select().eq("id", id).maybeSingle()); return r ? toMemberEdit(r) : null; },
+  async createMemberEdit(input) {
+    return toMemberEdit(check(await sb().from("member_edits").insert({ target_email: input.targetEmail, changes: input.changes, requested_by: input.requestedBy }).select().single()));
+  },
+  async setMemberEditStatus(id, status, reviewedBy) { check(await sb().from("member_edits").update({ status, reviewed_by: reviewedBy }).eq("id", id)); },
 
   async getPasskeyByUser(userId) { const r = check(await sb().from("passkeys").select().eq("user_id", userId).maybeSingle()); return r ? toPasskey(r) : null; },
   async listPasskeys() { return (await fetchAll(() => sb().from("passkeys").select().order("user_id"))).map(toPasskey); },

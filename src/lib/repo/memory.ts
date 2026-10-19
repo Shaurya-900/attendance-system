@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import type {
-  Attendance, AuditEntry, Excuse, Group, GroupMember, Meeting, Passkey, Profile, RosterEntry, Semester, StrikeAdjustment,
+  Attendance, AuditEntry, Excuse, Group, GroupMember, Meeting, MemberEdit, Passkey, Profile, RosterEntry, RosterGroup, Semester, StrikeAdjustment,
 } from "../types";
 import type { Repo } from "./types";
 
@@ -16,6 +16,8 @@ interface Store {
   adjustments: StrikeAdjustment[];
   groups: Group[];
   groupMembers: GroupMember[];
+  rosterGroups: RosterGroup[];
+  memberEdits: MemberEdit[];
   audit: AuditEntry[];
 }
 
@@ -30,7 +32,8 @@ function seed(): Store {
   ];
   return {
     roster: people.map((p) => ({ ...p, addedAt: now })),
-    profiles: people.map((p, i) => ({ id: `user-${i}`, ...p, active: true, createdAt: now })),
+    // The demo admin is an approver, so edits can be tried end to end.
+    profiles: people.map((p, i) => ({ id: `user-${i}`, ...p, active: true, approver: p.role === "admin", createdAt: now })),
     passkeys: [],
     meetings: [],
     attendance: [],
@@ -39,6 +42,8 @@ function seed(): Store {
     adjustments: [],
     groups: [],
     groupMembers: [],
+    rosterGroups: [],
+    memberEdits: [],
     audit: [],
   };
 }
@@ -68,6 +73,34 @@ export const memoryRepo: Repo = {
       else db().roster.push({ ...e, addedAt: new Date().toISOString() });
     }
   },
+  async updateRosterEntry(oldEmail, e) {
+    const r = db().roster.find((x) => x.email === oldEmail);
+    if (!r) return;
+    Object.assign(r, { email: e.email, name: e.name, rollNo: e.rollNo, role: e.role });
+    for (const rg of db().rosterGroups) if (rg.email === oldEmail) rg.email = e.email;
+  },
+  async updateAuthEmail() {}, // demo logins aren't tied to an email
+
+  async listRosterGroups(filter = {}) {
+    return clone(db().rosterGroups.filter((r) => (!filter.email || r.email === filter.email) && (!filter.groupId || r.groupId === filter.groupId)));
+  },
+  async addRosterGroup(email, groupId) {
+    if (!db().rosterGroups.some((r) => r.email === email && r.groupId === groupId)) db().rosterGroups.push({ email, groupId });
+  },
+  async removeRosterGroup(email, groupId) {
+    db().rosterGroups = db().rosterGroups.filter((r) => !(r.email === email && r.groupId === groupId));
+  },
+
+  async listMemberEdits(status) {
+    return clone(db().memberEdits.filter((e) => !status || e.status === status).sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+  },
+  async getMemberEdit(id) { return clone(db().memberEdits.find((e) => e.id === id) ?? null); },
+  async createMemberEdit(input) {
+    const e: MemberEdit = { id: randomUUID(), ...clone(input), status: "pending", reviewedBy: null, createdAt: new Date().toISOString() };
+    db().memberEdits.push(e);
+    return clone(e);
+  },
+  async setMemberEditStatus(id, status, reviewedBy) { const e = db().memberEdits.find((x) => x.id === id); if (e) Object.assign(e, { status, reviewedBy }); },
 
   async getPasskeyByUser(userId) { return clone(db().passkeys.find((p) => p.userId === userId) ?? null); },
   async listPasskeys() { return clone(db().passkeys); },
@@ -171,6 +204,7 @@ export const memoryRepo: Repo = {
     s.excuses = s.excuses.filter((e) => !meetingIds.has(e.meetingId));
     s.adjustments = s.adjustments.filter((a) => a.groupId !== id);
     s.groupMembers = s.groupMembers.filter((m) => m.groupId !== id);
+    s.rosterGroups = s.rosterGroups.filter((r) => r.groupId !== id);
     s.groups = s.groups.filter((g) => g.id !== id);
   },
   async deleteMember(userId) {
@@ -183,8 +217,12 @@ export const memoryRepo: Repo = {
     s.adjustments = s.adjustments.filter((a) => a.userId !== userId).map((a) => (a.createdBy === userId ? { ...a, createdBy: null } : a));
     s.groupMembers = s.groupMembers.filter((m) => m.userId !== userId);
     if (email) s.roster = s.roster.filter((r) => r.email !== email);
+    if (email) s.rosterGroups = s.rosterGroups.filter((r) => r.email !== email);
   },
-  async deleteRosterEntry(email) { db().roster = db().roster.filter((r) => r.email !== email.toLowerCase()); },
+  async deleteRosterEntry(email) {
+    db().roster = db().roster.filter((r) => r.email !== email.toLowerCase());
+    db().rosterGroups = db().rosterGroups.filter((r) => r.email !== email.toLowerCase());
+  },
 
   async addAudit(input) { db().audit.unshift({ id: randomUUID(), ...input, createdAt: new Date().toISOString() }); },
   async listAudit(limit) { return clone(db().audit.slice(0, limit)); },

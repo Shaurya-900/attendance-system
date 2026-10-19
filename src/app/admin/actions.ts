@@ -11,9 +11,10 @@ import { z } from "zod";
 import { canManageGroup, requireAdmin, requireStaff } from "@/lib/auth";
 import { applyApprovedExcuse, closeMeeting, expectedMembers } from "@/lib/meetings";
 import { env } from "@/lib/env";
+import { applyMemberChanges, checkMemberChanges, detailsAfter } from "@/lib/members";
 import { getRepo } from "@/lib/repo";
 import { parseRoster } from "@/lib/roster";
-import type { AttendanceStatus, Meeting } from "@/lib/types";
+import type { AttendanceStatus, Meeting, MemberChanges } from "@/lib/types";
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
 
@@ -23,6 +24,13 @@ async function requireMeetingManager(meetingId: string): Promise<{ actorId: stri
   const meeting = await getRepo().getMeeting(meetingId);
   if (!meeting || !canManageGroup(staff, meeting.groupId)) redirect("/admin/meetings");
   return { actorId: staff.user.id, meeting };
+}
+
+/** Admins with approver rights: they approve other admins' member edits and appoint approvers. */
+async function requireApprover() {
+  const admin = await requireAdmin();
+  if (!admin.approver) redirect("/admin/members");
+  return admin;
 }
 
 async function requireGroupManager(groupId: string) {
@@ -236,23 +244,31 @@ export async function addGroupMembers(_prev: FormState, formData: FormData): Pro
   const groupId = str(formData, "groupId");
   const staff = await requireGroupManager(groupId);
   const repo = getRepo();
-  const [profiles, members] = await Promise.all([repo.listProfiles(), repo.listGroupMembers(groupId)]);
+  const [profiles, members, roster] = await Promise.all([repo.listProfiles(), repo.listGroupMembers(groupId), repo.listRoster()]);
   const byEmail = new Map(profiles.map((p) => [p.email, p]));
+  const onRoster = new Set(roster.map((r) => r.email));
   const ids = new Set(formData.getAll("userId").map(String));
+  // People on the roster who haven't signed in yet get a reserved place, and join on their first sign-in.
+  const reserve = new Set(formData.getAll("email").map(String).filter((e) => onRoster.has(e) && !byEmail.has(e)));
   const unknown: string[] = [];
   for (const email of str(formData, "emails").split(/[\s,;]+/).map((e) => e.toLowerCase()).filter(Boolean)) {
     const p = byEmail.get(email);
-    if (p) ids.add(p.id); else unknown.push(email);
+    if (p) ids.add(p.id); else if (onRoster.has(email)) reserve.add(email); else unknown.push(email);
   }
   const existing = new Set(members.map((m) => m.userId));
   const known = new Set(profiles.map((p) => p.id));
   const toAdd = [...ids].filter((id) => !existing.has(id) && known.has(id));
-  await Promise.all(toAdd.map((id) => repo.setGroupMember(groupId, id, "member")));
-  if (toAdd.length) await repo.addAudit({ actorId: staff.user.id, action: "group.add_members", target: groupId, details: { count: toAdd.length } });
+  await Promise.all([
+    ...toAdd.map((id) => repo.setGroupMember(groupId, id, "member")),
+    ...[...reserve].map((email) => repo.addRosterGroup(email, groupId)),
+  ]);
+  if (toAdd.length || reserve.size) {
+    await repo.addAudit({ actorId: staff.user.id, action: "group.add_members", target: groupId, details: { count: toAdd.length, reserved: reserve.size } });
+  }
   refreshAll();
-  const msg = `Added ${toAdd.length} member(s).`;
+  const msg = `Added ${toAdd.length} member(s)${reserve.size ? `; ${reserve.size} more will join when they first sign in` : ""}.`;
   return unknown.length
-    ? { error: `${msg} Not found (they must sign in to the app once first): ${unknown.join(", ")}` }
+    ? { error: `${msg} Not on the members list (import them on the Members page first): ${unknown.join(", ")}` }
     : { ok: msg };
 }
 
@@ -341,5 +357,73 @@ export async function deleteRosterEntry(formData: FormData) {
   if ((await repo.listProfiles()).some((p) => p.email === email)) return; // signed-up members go through deleteMember
   await repo.deleteRosterEntry(email);
   await repo.addAudit({ actorId: admin.id, action: "roster.delete", target: null, details: { email } });
+  refreshAll();
+}
+
+/** Remove a reserved team place for someone who hasn't signed in yet. */
+export async function removeReservedMember(formData: FormData) {
+  const groupId = str(formData, "groupId");
+  const staff = await requireGroupManager(groupId);
+  const email = str(formData, "email");
+  await getRepo().removeRosterGroup(email, groupId);
+  await getRepo().addAudit({ actorId: staff.user.id, action: "group.unreserve", target: email, details: { groupId } });
+  refreshAll();
+}
+
+/** An admin edits a member. Approvers' edits apply at once; other admins' edits wait for an approver. */
+export async function requestMemberEdit(_prev: FormState, formData: FormData): Promise<FormState> {
+  const admin = await requireAdmin();
+  const targetEmail = str(formData, "targetEmail");
+  const role = str(formData, "role") === "admin" ? "admin" : "member";
+  const repo = getRepo();
+  const checked = await checkMemberChanges(repo, targetEmail, {
+    name: str(formData, "name"), rollNo: str(formData, "rollNo"), email: str(formData, "email"), role,
+  }, { actorId: admin.id, domain: env.allowedEmailDomain });
+  if ("error" in checked) return checked;
+  if (admin.approver) {
+    await applyMemberChanges(repo, targetEmail, checked.changes);
+    await repo.addAudit({ actorId: admin.id, action: "member.edit", target: targetEmail, details: { ...checked.changes } });
+    refreshAll();
+    return { ok: "Saved." };
+  }
+  await repo.createMemberEdit({ targetEmail, changes: checked.changes, requestedBy: admin.id });
+  await repo.addAudit({ actorId: admin.id, action: "member.edit_requested", target: targetEmail, details: { ...checked.changes } });
+  refreshAll();
+  return { ok: "Sent for approval. It applies once an approver accepts it." };
+}
+
+/** An approver accepts or rejects a pending member edit. The change is checked again, since the member may have changed since. */
+export async function reviewMemberEdit(_prev: FormState, formData: FormData): Promise<FormState> {
+  const approver = await requireApprover();
+  const repo = getRepo();
+  const edit = await repo.getMemberEdit(str(formData, "editId"));
+  if (!edit || edit.status !== "pending") return { error: "This request was already handled." };
+  if (str(formData, "decision") !== "approve") {
+    await repo.setMemberEditStatus(edit.id, "rejected", approver.id);
+    await repo.addAudit({ actorId: approver.id, action: "member.edit_rejected", target: edit.targetEmail, details: { editId: edit.id } });
+    refreshAll();
+    return { ok: "Rejected." };
+  }
+  const wanted = await detailsAfter(repo, edit.targetEmail, edit.changes);
+  const checked: { changes: MemberChanges } | { error: string } = wanted
+    ? await checkMemberChanges(repo, edit.targetEmail, wanted, { actorId: approver.id, domain: env.allowedEmailDomain })
+    : { error: "That member no longer exists." };
+  if ("error" in checked) return { error: `Can't approve: ${checked.error} Reject it, or ask for a new edit.` };
+  await applyMemberChanges(repo, edit.targetEmail, checked.changes);
+  await repo.setMemberEditStatus(edit.id, "approved", approver.id);
+  await repo.addAudit({ actorId: approver.id, action: "member.edit_approved", target: edit.targetEmail, details: { editId: edit.id, ...checked.changes } });
+  refreshAll();
+  return { ok: "Approved and applied." };
+}
+
+/** Approvers appoint or remove other approvers. Only admins can be approvers, and nobody changes their own rights. */
+export async function setApprover(formData: FormData) {
+  const approver = await requireApprover();
+  const repo = getRepo();
+  const target = await repo.getProfile(str(formData, "userId"));
+  if (!target || target.id === approver.id || target.role !== "admin") return;
+  const value = str(formData, "approver") === "true";
+  await repo.upsertProfile({ ...target, approver: value });
+  await repo.addAudit({ actorId: approver.id, action: value ? "member.approver_added" : "member.approver_removed", target: target.email, details: {} });
   refreshAll();
 }

@@ -1,5 +1,6 @@
 import type {
-  Attendance, AuditEntry, Excuse, Group, GroupMember, ExcuseStatus, Meeting, MeetingStatus, Passkey, Profile, RosterEntry, Semester, StrikeAdjustment,
+  Attendance, AuditEntry, Excuse, Group, GroupMember, ExcuseStatus, Meeting, MeetingStatus, MemberEdit, MemberEditStatus, Passkey, Profile, RosterEntry,
+  RosterGroup, Semester, StrikeAdjustment,
 } from "../types";
 
 export type InsertAttendanceResult = "ok" | "duplicate_user" | "duplicate_device";
@@ -13,6 +14,19 @@ export interface Repo {
   getRosterEntry(email: string): Promise<RosterEntry | null>;
   listRoster(): Promise<RosterEntry[]>;
   upsertRoster(entries: RosterEntry[]): Promise<void>;
+  /** Update one roster entry, renaming it when `entry.email` differs from `oldEmail` (its team places follow). */
+  updateRosterEntry(oldEmail: string, entry: RosterEntry): Promise<void>;
+  /** Change the email a member signs in with. */
+  updateAuthEmail(userId: string, email: string): Promise<void>;
+
+  listRosterGroups(filter?: { email?: string; groupId?: string }): Promise<RosterGroup[]>;
+  addRosterGroup(email: string, groupId: string): Promise<void>;
+  removeRosterGroup(email: string, groupId: string): Promise<void>;
+
+  listMemberEdits(status?: MemberEditStatus): Promise<MemberEdit[]>;
+  getMemberEdit(id: string): Promise<MemberEdit | null>;
+  createMemberEdit(input: Pick<MemberEdit, "targetEmail" | "changes" | "requestedBy">): Promise<MemberEdit>;
+  setMemberEditStatus(id: string, status: MemberEditStatus, reviewedBy: string): Promise<void>;
 
   getPasskeyByUser(userId: string): Promise<Passkey | null>;
   listPasskeys(): Promise<Passkey[]>;

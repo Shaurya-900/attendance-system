@@ -7,6 +7,8 @@ export interface Profile {
   rollNo: string | null;
   role: Role;
   active: boolean;
+  /** May approve other admins' member edits and appoint approvers. Unset counts as false. */
+  approver?: boolean;
   createdAt: string;
 }
 
@@ -128,4 +130,32 @@ export interface GroupMember {
   userId: string;
   role: "member" | "lead";
   addedAt: string;
+}
+
+/** A team place for someone on the roster who hasn't signed in yet; it becomes a membership on their first sign-in. */
+export interface RosterGroup {
+  email: string;
+  groupId: string;
+}
+
+/** Fields an admin can change on a member. Only the ones being changed are set. */
+export interface MemberChanges {
+  name?: string;
+  rollNo?: string | null;
+  email?: string;
+  role?: Role;
+}
+
+export type MemberEditStatus = "pending" | "approved" | "rejected";
+
+/** An admin's change to a member, waiting for an approver unless an approver made it. */
+export interface MemberEdit {
+  id: string;
+  /** The member's SNU mail ID when the change was requested. */
+  targetEmail: string;
+  changes: MemberChanges;
+  requestedBy: string | null;
+  status: MemberEditStatus;
+  reviewedBy: string | null;
+  createdAt: string;
 }
