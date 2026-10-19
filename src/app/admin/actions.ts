@@ -157,7 +157,7 @@ export async function importRoster(_prev: FormState, formData: FormData): Promis
   const admin = await requireAdmin();
   const { entries, rejected } = parseRoster(str(formData, "csv"), env.allowedEmailDomain);
   const skipped = rejected.length
-    ? `Skipped ${rejected.length} line(s). Each needs a name, a roll number of 10 digits starting with 2, and an SNU mail ID${env.allowedEmailDomain ? ` ending in @${env.allowedEmailDomain}` : ""}:\n${rejected.join("\n")}`
+    ? `Skipped ${rejected.length} line(s). Each needs a name without numbers, a roll number of 10 digits starting with 2, and an SNU mail ID${env.allowedEmailDomain ? ` ending in @${env.allowedEmailDomain}` : ""}:\n${rejected.join("\n")}`
     : "";
   if (entries.length === 0) return { error: skipped || "Paste at least one line." };
   const repo = getRepo();

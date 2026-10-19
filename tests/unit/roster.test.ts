@@ -13,6 +13,8 @@ describe("parseRoster", () => {
       "wrong@snu.edu.in,Wrong,1610110014",
       "letters@snu.edu.in,Letters,21BCE001",
       "not-an-email,Someone,2610110015",
+      "num@snu.edu.in,Agent 47,2610110016",
+      "Ravi2 Kumar 2610110017 rk1@snu.edu.in",
     ].join("\n"));
     expect(entries).toEqual([
       { email: "asha@snu.edu.in", name: "Asha Rao", rollNo: "2610110014", role: "member" },
@@ -25,6 +27,8 @@ describe("parseRoster", () => {
       "wrong@snu.edu.in,Wrong,1610110014",
       "letters@snu.edu.in,Letters,21BCE001",
       "not-an-email,Someone,2610110015",
+      "num@snu.edu.in,Agent 47,2610110016",
+      "Ravi2 Kumar 2610110017 rk1@snu.edu.in",
     ]);
   });
 
