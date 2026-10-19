@@ -125,12 +125,14 @@ export async function reviewExcuse(formData: FormData) {
   refreshAll();
 }
 
-export async function adjustStrikes(formData: FormData) {
+export async function adjustStrikes(_prev: FormState, formData: FormData): Promise<FormState> {
   const admin = await requireAdmin();
   const userId = str(formData, "userId");
-  const parsedPoints = z.coerce.number().min(-10).max(10).refine((n) => n !== 0).safeParse(str(formData, "points"));
+  const parsedPoints = z.coerce.number().min(-10).max(10).multipleOf(0.5).refine((n) => n !== 0).safeParse(str(formData, "points"));
   const reason = str(formData, "reason");
-  if (!parsedPoints.success || !reason) return;
+  const values = { points: str(formData, "points"), reason, groupId: str(formData, "groupId") };
+  if (!parsedPoints.success) return { error: "Points must be between -10 and 10 in steps of 0.5, and not 0. Use a minus sign to remove strikes.", values };
+  if (!reason) return { error: "Add a reason, so others can see why the count changed.", values };
   const points = parsedPoints.data;
   const semesterId = str(formData, "semesterId") || null;
   const groupId = str(formData, "groupId") || null;
@@ -138,26 +140,29 @@ export async function adjustStrikes(formData: FormData) {
   await repo.addAdjustment({ userId, semesterId, groupId, points, reason, createdBy: admin.id });
   await repo.addAudit({ actorId: admin.id, action: "strikes.adjust", target: userId, details: { points, reason, semesterId, groupId } });
   refreshAll();
+  return { ok: `${points > 0 ? "Added" : "Removed"} ${Math.abs(points)} ${Math.abs(points) === 1 ? "point" : "points"}.` };
 }
 
-export async function resetPasskey(formData: FormData) {
+export async function resetPasskey(_prev: FormState, formData: FormData): Promise<FormState> {
   const admin = await requireAdmin();
   const userId = str(formData, "userId");
   const repo = getRepo();
   await repo.deletePasskey(userId);
   await repo.addAudit({ actorId: admin.id, action: "passkey.reset", target: userId, details: {} });
   refreshAll();
+  return { ok: "Phone reset. They'll register their phone again before their next check-in." };
 }
 
-export async function setActive(formData: FormData) {
+export async function setActive(_prev: FormState, formData: FormData): Promise<FormState> {
   const admin = await requireAdmin();
   const userId = str(formData, "userId");
   const active = str(formData, "active") === "true";
-  if (userId === admin.id) return;
+  if (userId === admin.id) return { error: "You can't deactivate yourself." };
   const repo = getRepo();
   await repo.setProfileActive(userId, active);
   await repo.addAudit({ actorId: admin.id, action: active ? "member.activate" : "member.deactivate", target: userId, details: {} });
   refreshAll();
+  return { ok: active ? "Reactivated. They can sign in and check in again." : "Deactivated. They can't sign in until reactivated." };
 }
 
 /** Roster lines (see parseRoster); a header row is optional. Valid lines are imported; bad ones are reported. */
@@ -189,7 +194,8 @@ export async function importRoster(_prev: FormState, formData: FormData): Promis
   return skipped ? { error: `${msg} ${skipped}` } : { ok: msg };
 }
 
-export type FormState = { error?: string; ok?: string } | null;
+/** `values` sends typed fields back with an error, so the form can show them again. */
+export type FormState = { error?: string; ok?: string; values?: Record<string, string> } | null;
 
 export async function createSemester(_prev: FormState, formData: FormData): Promise<FormState> {
   const admin = await requireAdmin();
@@ -385,7 +391,9 @@ export async function requestMemberEdit(_prev: FormState, formData: FormData): P
   const checked = await checkMemberChanges(repo, targetEmail, {
     name: str(formData, "name"), rollNo: str(formData, "rollNo"), email: str(formData, "email"), role,
   }, { actorId: admin.id, domain: env.allowedEmailDomain });
-  if ("error" in checked) return checked;
+  if ("error" in checked) {
+    return { error: checked.error, values: { name: str(formData, "name"), rollNo: str(formData, "rollNo"), email: str(formData, "email") } };
+  }
   if (admin.approver) {
     await applyMemberChanges(repo, targetEmail, checked.changes);
     await repo.addAudit({ actorId: admin.id, action: "member.edit", target: targetEmail, details: { ...checked.changes } });
@@ -423,13 +431,14 @@ export async function reviewMemberEdit(_prev: FormState, formData: FormData): Pr
 }
 
 /** Approvers appoint or remove other approvers. Only admins can be approvers, and nobody changes their own rights. */
-export async function setApprover(formData: FormData) {
+export async function setApprover(_prev: FormState, formData: FormData): Promise<FormState> {
   const approver = await requireApprover();
   const repo = getRepo();
   const target = await repo.getProfile(str(formData, "userId"));
-  if (!target || target.id === approver.id || target.role !== "admin") return;
+  if (!target || target.id === approver.id || target.role !== "admin") return { error: "Only other admins can be made approvers." };
   const value = str(formData, "approver") === "true";
   await repo.upsertProfile({ ...target, approver: value });
   await repo.addAudit({ actorId: approver.id, action: value ? "member.approver_added" : "member.approver_removed", target: target.email, details: {} });
   refreshAll();
+  return { ok: value ? `${target.name} can now approve edits.` : `${target.name} can no longer approve edits.` };
 }

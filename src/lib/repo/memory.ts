@@ -25,7 +25,7 @@ function seed(): Store {
   const now = new Date().toISOString();
   const year = new Date().getFullYear();
   const people: RosterEntry[] = [
-    { email: "admin@ecell.test", name: "Core Admin", rollNo: "22010110001", role: "admin" },
+    { email: "admin@ecell.test", name: "Core Admin", rollNo: "2210110001", role: "admin" },
     { email: "alice@ecell.test", name: "Alice Member", rollNo: "2410110001", role: "member" },
     { email: "bob@ecell.test", name: "Bob Member", rollNo: "2410110002", role: "member" },
     { email: "carol@ecell.test", name: "Carol Member", rollNo: "2410110003", role: "member" },
