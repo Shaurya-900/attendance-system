@@ -103,14 +103,14 @@ export type GroupKind = "team" | "core" | "leads" | "event";
 export const GROUP_KIND_LABEL: Record<GroupKind, string> = {
   team: "Team",
   core: "Core",
-  leads: "Leads (sub-core)",
+  leads: "Leads (core + sub-core)",
   event: "Event team",
 };
 
 export const GROUP_KIND_HELP: Record<GroupKind, string> = {
   team: "A working team, e.g. Marketing, Tech or Design, with its own meetings.",
-  core: "The core team.",
-  leads: "All the leads (sub-core) together, for leads meetings.",
+  core: "The core team, for core-only meetings.",
+  leads: "Core and sub-core together, for leads meetings. Add both core and sub-core members to it.",
   event: "A temporary team for one event. Give it an end date and it is archived afterwards.",
 };
 
