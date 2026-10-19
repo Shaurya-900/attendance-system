@@ -10,6 +10,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { canManageGroup, requireAdmin, requireStaff } from "@/lib/auth";
 import { applyApprovedExcuse, closeMeeting, expectedMembers } from "@/lib/meetings";
+import { env } from "@/lib/env";
 import { getRepo } from "@/lib/repo";
 import { parseRoster } from "@/lib/roster";
 import type { AttendanceStatus, Meeting } from "@/lib/types";
@@ -151,12 +152,12 @@ export async function setActive(formData: FormData) {
   refreshAll();
 }
 
-/** CSV lines: email,name,roll_no[,role]; a header row is optional. Valid lines are imported; bad ones are reported. */
+/** Roster lines (see parseRoster); a header row is optional. Valid lines are imported; bad ones are reported. */
 export async function importRoster(_prev: FormState, formData: FormData): Promise<FormState> {
   const admin = await requireAdmin();
-  const { entries, rejected } = parseRoster(str(formData, "csv"));
+  const { entries, rejected } = parseRoster(str(formData, "csv"), env.allowedEmailDomain);
   const skipped = rejected.length
-    ? `Skipped ${rejected.length} line(s). Each needs an email, a name and a roll number of 11 digits starting with 2:\n${rejected.join("\n")}`
+    ? `Skipped ${rejected.length} line(s). Each needs a name, a roll number of 10 digits starting with 2, and an email${env.allowedEmailDomain ? ` ending in @${env.allowedEmailDomain}` : ""}:\n${rejected.join("\n")}`
     : "";
   if (entries.length === 0) return { error: skipped || "Paste at least one line." };
   const repo = getRepo();
