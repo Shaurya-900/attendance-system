@@ -84,6 +84,13 @@ header a[aria-current="page"] { text-decoration: underline 2px; text-underline-o
   min-height: 2.5rem; width: 100%; border-radius: .5rem; border: 1px solid var(--border);
   background: var(--card); padding: .5rem .75rem;
 }
+/* Safari draws native selects as a small bubble that ignores height and padding, so draw our own chevron. */
+select.input {
+  appearance: none; padding-right: 2.25rem;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 1.15rem) 55%, calc(100% - .85rem) 55%;
+  background-size: .3rem .3rem; background-repeat: no-repeat;
+}
 .input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
 /* Messages are written on the page in ink, not boxed: notes and warnings in blue-black ink, errors in red pen. */
