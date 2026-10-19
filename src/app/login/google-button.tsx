@@ -12,5 +12,5 @@ export function GoogleButton({ next, domain }: { next: string; domain: string | 
       },
     });
   }
-  return <button onClick={signIn} className="btn w-full">Continue with Google</button>;
+  return <button onClick={signIn} className="btn w-full">Continue with SNU mail ID</button>;
 }
