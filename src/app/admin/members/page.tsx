@@ -82,6 +82,7 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
           <option value="member">Members</option>
           <option value="admin">Admins</option>
           <option value="approver">Approvers</option>
+          <option value="advisor">Advisors</option>
         </select>
         <select name="status" defaultValue={status} className="input" aria-label="Status">
           <option value="">Any status</option>
@@ -103,7 +104,7 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
       {/* One card per member: readable on phones, and a two-column grid on wider screens. */}
       <div className="grid gap-3 lg:grid-cols-2">
         {shownProfiles.map((p) => {
-          const scopes = (byUser.get(p.id) ?? []).filter((s) => s.group || p.role === "member");
+          const scopes = p.role === "advisor" ? [] : (byUser.get(p.id) ?? []).filter((s) => s.group || p.role === "member");
           return (
             <article key={p.id} aria-label={p.name} className={`card space-y-3 ${p.active ? "" : "opacity-50"}`}>
               <div className="flex flex-wrap items-start justify-between gap-2">
@@ -136,7 +137,7 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
               </div>
 
               <div className="flex flex-wrap gap-x-4 gap-y-1">
-                {scopes.length === 0 && <span className="muted text-xs">Admin, not tracked for full body</span>}
+                {scopes.length === 0 && <span className="muted text-xs">{p.role === "advisor" ? "Advisor, no attendance requirement" : "Admin, not tracked for full body"}</span>}
                 {scopes.map((s) => (
                   <div key={s.group?.id ?? "all"} className="flex items-center gap-1 text-xs">
                     <span className="muted">{scopeLabel(s)}:</span> <LevelBadge level={s.summary.level} points={s.summary.points} />
@@ -154,6 +155,7 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
                 ) : <span>Not registered</span>}
               </div>
 
+              {p.role !== "advisor" && (
               <form action={adjustStrikes} className="grid grid-cols-[1fr_5rem] gap-2 sm:grid-cols-[auto_5rem_1fr_auto]">
                 <input type="hidden" name="userId" value={p.id} />
                 <input type="hidden" name="semesterId" value={semester?.id ?? ""} />
@@ -164,6 +166,7 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
                 <input name="reason" required placeholder="Reason" aria-label="Reason" className="input col-span-2 text-sm sm:col-span-1" />
                 <button className="btn-ghost col-span-2 justify-center text-sm sm:col-span-1">Adjust strikes</button>
               </form>
+              )}
 
               <EditMemberForm member={p} isApprover={isApprover} isSelf={p.id === admin.id} />
             </article>

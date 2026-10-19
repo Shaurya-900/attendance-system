@@ -1,38 +1,26 @@
 @import "tailwindcss";
 
-/* Attendance-register palette: blue ink for present, red pen for absent, pencil for late. */
+/* Attendance-register palette: blue ink for present, red pen for absent, pencil for late.
+   Each colour is light-dark(light, dark): it follows the system setting, or the choice saved by the
+   theme toggle (data-theme on <html>). */
 :root {
-  --bg: #f4f6fb;        /* register paper */
-  --fg: #151b34;        /* blue-black ink */
-  --card: #ffffff;
-  --muted: #5b6380;
-  --border: #dde2ef;    /* ruled line */
-  --accent: #2341b5;    /* register ink */
-  --accent-soft: #e6ebfb;
-  --red: #c62f28;       /* red pen */
-  --red-soft: #fbe9e7;
-  --pencil: #925f07;
-  --pencil-soft: #fbf1dc;
-  --focus: #2341b5;
-  color-scheme: light;
+  --bg: light-dark(#f4f6fb, #0d1224);          /* register paper */
+  --fg: light-dark(#151b34, #e7eaf6);          /* blue-black ink */
+  --card: light-dark(#ffffff, #151b33);
+  --muted: light-dark(#5b6380, #9aa2c0);
+  --border: light-dark(#dde2ef, #283052);      /* ruled line */
+  --accent: light-dark(#2341b5, #8098ff);      /* register ink */
+  --accent-soft: light-dark(#e6ebfb, #1d2650);
+  --red: light-dark(#c62f28, #ff7a6e);         /* red pen */
+  --red-soft: light-dark(#fbe9e7, #3a1a1c);
+  --pencil: light-dark(#925f07, #f0b453);
+  --pencil-soft: light-dark(#fbf1dc, #33280f);
+  --focus: light-dark(#2341b5, #a9b9ff);
+  --on-accent: light-dark(#fff, #0d1224);
+  color-scheme: light dark;
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0d1224;
-    --fg: #e7eaf6;
-    --card: #151b33;
-    --muted: #9aa2c0;
-    --border: #283052;
-    --accent: #8098ff;
-    --accent-soft: #1d2650;
-    --red: #ff7a6e;
-    --red-soft: #3a1a1c;
-    --pencil: #f0b453;
-    --pencil-soft: #33280f;
-    --focus: #a9b9ff;
-    color-scheme: dark;
-  }
-}
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
 
 @theme inline {
   --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
@@ -53,10 +41,9 @@ h1 { letter-spacing: -0.02em; }
 
 .btn {
   min-height: 2.75rem; display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
-  border-radius: .5rem; padding: .5rem 1.125rem; font-weight: 600; background: var(--accent); color: #fff;
+  border-radius: .5rem; padding: .5rem 1.125rem; font-weight: 600; background: var(--accent); color: var(--on-accent);
   transition: filter .15s, transform .1s;
 }
-@media (prefers-color-scheme: dark) { .btn { color: #0d1224; } }
 .btn:hover:not(:disabled) { filter: brightness(1.08); }
 .btn:active:not(:disabled) { transform: translateY(1px); }
 .btn:disabled { opacity: .55; cursor: progress; }

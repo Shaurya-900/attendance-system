@@ -35,6 +35,7 @@ export async function checkMemberChanges(
     return { error: `Enter an SNU mail ID${opts.domain ? ` ending in @${opts.domain}` : ""}.` };
   }
   if (member.profile?.id === opts.actorId && wanted.role !== now.role) return { error: "You can't change your own admin rights." };
+  if ((now.role === "advisor") !== (wanted.role === "advisor")) return { error: "The advisor role can only be set or removed in the database." };
 
   const [profiles, roster] = await Promise.all([repo.listProfiles(), repo.listRoster()]);
   const others = [...profiles, ...roster].filter((p) => p.email !== targetEmail);

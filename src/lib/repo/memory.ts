@@ -29,6 +29,7 @@ function seed(): Store {
     { email: "alice@ecell.test", name: "Alice Member", rollNo: "2410110001", role: "member" },
     { email: "bob@ecell.test", name: "Bob Member", rollNo: "2410110002", role: "member" },
     { email: "carol@ecell.test", name: "Carol Member", rollNo: "2410110003", role: "member" },
+    { email: "dana@ecell.test", name: "Dana Advisor", rollNo: null, role: "advisor" },
   ];
   return {
     roster: people.map((p) => ({ ...p, addedAt: now })),

@@ -31,12 +31,13 @@ export function EditMemberForm({ member, isApprover, isSelf }: {
         </label>
         <label className="space-y-1">
           <span className="muted text-xs">Rights</span>
-          {/* Nobody changes their own rights, so they can't lock themselves out. */}
-          <select name="role" className="input" defaultValue={member.role} disabled={isSelf}>
+          {/* Nobody changes their own rights, so they can't lock themselves out. Advisors are set in the database only. */}
+          <select name="role" className="input" defaultValue={member.role} disabled={isSelf || member.role === "advisor"}>
             <option value="member">Member</option>
             <option value="admin">Admin</option>
+            {member.role === "advisor" && <option value="advisor">Advisor (set in database)</option>}
           </select>
-          {isSelf && <input type="hidden" name="role" value={member.role} />}
+          {(isSelf || member.role === "advisor") && <input type="hidden" name="role" value={member.role} />}
         </label>
         <div className="space-y-1 sm:col-span-2">
           <button className="btn" disabled={pending}>{pending ? "Saving…" : isApprover ? "Save" : "Send for approval"}</button>

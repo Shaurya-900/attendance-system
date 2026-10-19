@@ -16,9 +16,11 @@ export default async function MePage() {
   const recordFor = new Map(records.map((r) => [r.meetingId, r]));
   const excuseFor = new Map(excuses.map((e) => [e.meetingId, e]));
   // Meetings I'm expected at: full body (members), my groups' meetings, plus anything I have a record for.
+  // Advisors have no attendance requirement: only meetings they checked in to, and no strike counts.
+  const advisor = user.role === "advisor";
   const meetings = allMeetings.filter((m) =>
-    recordFor.has(m.id) || (m.groupId ? myGroups.has(m.groupId) : user.role === "member"));
-  const scopes = allScopes.filter((s) => s.group || user.role === "member");
+    recordFor.has(m.id) || (!advisor && (m.groupId ? myGroups.has(m.groupId) : user.role === "member")));
+  const scopes = advisor ? [] : allScopes.filter((s) => s.group || user.role === "member");
   const now = Date.now();
   const excusable = meetings.filter((m) => {
     const r = recordFor.get(m.id);
@@ -55,7 +57,7 @@ export default async function MePage() {
             </div>
           </section>
         ))}
-        {scopes.length === 0 && <p className="muted text-sm">You&apos;re not tracked in any group yet.</p>}
+        {scopes.length === 0 && <p className="muted text-sm">{advisor ? "You're an advisor, so there's no attendance requirement or strikes for you." : "You're not tracked in any group yet."}</p>}
       </div>
       <p className="muted text-xs">
         {semester ? `Semester: ${semester.name}. ` : "No semester configured, so all meetings count. "}
