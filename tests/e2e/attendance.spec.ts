@@ -222,7 +222,7 @@ test("admin can delete a group and a member", async ({ browser, baseURL }) => {
   await expect(admin.getByRole("link", { name: "Delete me team" })).toHaveCount(0);
 
   await admin.goto("/admin/members");
-  await admin.getByRole("textbox").last().fill("temp@ecell.test,Temp Person,24010110999");
+  await admin.getByRole("textbox").last().fill("temp@ecell.test,Temp Person,2410110999");
   await admin.getByRole("button", { name: "Import" }).click();
   await expect(admin.getByText("temp@ecell.test")).toBeVisible();
   await admin.getByRole("button", { name: "Remove" }).click();
@@ -269,7 +269,7 @@ test("a meeting can be deleted", async ({ browser, baseURL }) => {
 test("roster import rejects bad roll numbers and lists the skipped lines", async ({ browser, baseURL }) => {
   const admin = await asAdmin(await browser.newContext(), baseURL!);
   await admin.goto("/admin/members");
-  await admin.locator("textarea[name=csv]").fill("dev@snu.edu.in,Dev Shah,24010110201\nbad@snu.edu.in,Bad Roll,21BCE001");
+  await admin.locator("textarea[name=csv]").fill("dev@snu.edu.in,Dev Shah,2410110201\nbad@snu.edu.in,Bad Roll,21BCE001");
   await admin.getByRole("button", { name: "Import" }).click();
   await expect(admin.getByRole("alert").filter({ hasText: "Imported 1 member(s)" })).toContainText("bad@snu.edu.in,Bad Roll,21BCE001");
   await expect(admin.getByText("Dev Shah")).toBeVisible();
