@@ -4,7 +4,8 @@ import { getRepo } from "@/lib/repo";
 import { reviewExcuse } from "../actions";
 import { AddExcuseForm } from "./add-excuse-form";
 
-export default async function ExcusesPage() {
+export default async function ExcusesPage({ searchParams }: { searchParams: Promise<{ meetingId?: string; userId?: string }> }) {
+  const initial = await searchParams; // pre-filled from a member's "Excuse" link on the Members page
   const staff = await requireStaff();
   const repo = getRepo();
   const [allExcuses, profiles, meetings, groups, memberships] = await Promise.all([
@@ -29,7 +30,7 @@ export default async function ExcusesPage() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Excuses</h1>
-      <AddExcuseForm meetings={excuseMeetings} members={memberOptions} />
+      <AddExcuseForm meetings={excuseMeetings} members={memberOptions} initial={initial} />
       <div className="card overflow-x-auto">
         <table className="data">
           <thead><tr><th>Member</th><th>Meeting</th><th>Reason</th><th>Status</th></tr></thead>

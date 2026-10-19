@@ -46,7 +46,7 @@ h1 { letter-spacing: -0.02em; }
   border-radius: .5rem; padding: .5rem 1.125rem; font-weight: 600; background: var(--accent); color: var(--on-accent);
   transition: filter .15s, transform .1s;
 }
-.btn:hover:not(:disabled) { filter: brightness(1.08); }
+@media (hover: hover) { .btn:hover:not(:disabled) { filter: brightness(1.08); } }
 .btn:active:not(:disabled) { transform: translateY(1px); }
 .btn:disabled { opacity: .55; cursor: progress; }
 /* Busy is not broken: keep full contrast while we wait. */
@@ -64,7 +64,8 @@ h1 { letter-spacing: -0.02em; }
   min-height: 2.25rem; display: inline-flex; justify-content: center; gap: .25rem; align-items: center;
   border-radius: .5rem; padding: .375rem .75rem; border: 1px solid var(--border); background: var(--card); font-weight: 500;
 }
-.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+@media (hover: hover) { .btn-ghost:hover { border-color: var(--accent); color: var(--accent); } }
+.btn-ghost.is-open { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
 .btn-tall { min-height: 2.75rem; padding-inline: 1rem; }
 header a[aria-current="page"] { text-decoration: underline 2px; text-underline-offset: 6px; }
 .btn-ghost[aria-current="page"] { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
@@ -94,14 +95,26 @@ details[open] > summary .chevron { transform: rotate(180deg); }
   display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: .25rem .75rem;
   min-height: 3rem; padding: .625rem 1rem;
 }
-.member-row > summary:hover { background: color-mix(in oklab, var(--accent-soft) 55%, transparent); }
+@media (hover: hover) { .member-row > summary:hover { background: color-mix(in oklab, var(--accent-soft) 55%, transparent); } }
 .member-row[open] > summary { background: var(--accent-soft); }
 .member-detail { display: grid; gap: 1.25rem; padding: 1rem; border-top: 1px solid var(--border); }
+.row-marks { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .25rem .75rem; text-align: right; }
+.review { display: grid; gap: .625rem; padding: .875rem 1rem; border-radius: .5rem; border: 1px solid color-mix(in oklab, var(--red) 35%, var(--border)); }
+.panel-section { padding-top: .25rem; }
+/* Results that outlive their row sit at the bottom of the screen, in thumb reach. */
+.toast-region { position: fixed; inset-inline: 0; bottom: 1rem; z-index: 40; display: flex; justify-content: center; padding-inline: 1rem; pointer-events: none; }
+.toast {
+  pointer-events: auto; display: flex; align-items: center; gap: .75rem; max-width: 32rem; width: 100%;
+  padding: .625rem .625rem .625rem 1rem; border-radius: .75rem; border: 1px solid var(--border); background: var(--card);
+  box-shadow: 0 8px 24px -8px color-mix(in oklab, var(--fg) 35%, transparent); font-size: .875rem; font-weight: 500;
+}
+.toast p { flex: 1; }
+.toast-error p { color: var(--red); }
 .danger-zone { display: grid; gap: .5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
 /* On phones the strike holes drop under the name, so names never get squeezed. */
 @media (max-width: 40rem) {
   .member-row > summary { grid-template-columns: minmax(0, 1fr) auto; }
-  .member-row > summary > :nth-child(2) { grid-column: 1; grid-row: 2; justify-content: flex-start; }
+  .member-row > summary > .row-marks { grid-column: 1; grid-row: 2; justify-content: flex-start; text-align: left; }
   .member-row > summary > .chevron { grid-column: 2; grid-row: 1 / span 2; }
 }
 .tag {
@@ -121,7 +134,7 @@ dd, [data-testid="live-count"] { font-variant-numeric: tabular-nums; } /* counts
 table.data { width: 100%; font-size: .875rem; border-collapse: collapse; }
 table.data th { text-align: left; font-weight: 600; color: var(--muted); padding: .5rem; border-bottom: 2px solid var(--border); }
 table.data td { padding: .5rem; border-bottom: 1px solid var(--border); vertical-align: top; }
-table.data tbody tr:hover td { background: color-mix(in srgb, var(--accent-soft) 45%, transparent); }
+@media (hover: hover) { table.data tbody tr:hover td { background: color-mix(in srgb, var(--accent-soft) 45%, transparent); } }
 /* Tables marked .stack become one block per row on phones; each cell's data-label says what it is.
    Roles are set in the markup, so screen readers still read rows and cells. */
 @media (max-width: 40rem) {

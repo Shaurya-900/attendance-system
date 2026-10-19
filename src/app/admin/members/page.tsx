@@ -1,15 +1,14 @@
 import Link from "next/link";
-import { LevelBadge, StrikeHoles } from "@/components/ui";
+import { fmt, LevelBadge, StrikeHoles } from "@/components/ui";
 import { requireAdmin } from "@/lib/auth";
 import { scopeLabel, standings, type ScopeStanding } from "@/lib/meetings";
 import { getRepo } from "@/lib/repo";
 import type { MemberChanges, Profile, RosterEntry } from "@/lib/types";
-import { ConfirmForm } from "@/components/confirm-form";
 import { ImportRosterForm } from "./import-roster-form";
-import { ActionForm, EditMemberForm, ReviewEditForm, StrikeForm } from "./member-forms";
+import { ActionForm, EditMemberForm, MemberFilters, MemberPanel, OutcomeProvider, ReviewEditForm, StrikeForm } from "./member-forms";
 import { deleteMember, deleteRosterEntry, resetPasskey, setActive, setApprover } from "../actions";
 
-type Filters = { q?: string; role?: string; status?: string; team?: string };
+type Filters = { q?: string; role?: string; status?: string; team?: string; standing?: string; phone?: string };
 
 const CHANGE_LABEL: Record<keyof MemberChanges, string> = { name: "Name", rollNo: "Roll no.", email: "SNU mail ID", role: "Rights" };
 const RANK = { ok: 0, warning: 1, flagged: 2 } as const;
@@ -17,8 +16,7 @@ const ROLE_LABEL = { member: "", admin: "Admin", advisor: "Advisor" } as const;
 
 /** A small label next to a name: rights, status. Written in ink, no fill. */
 function Tag({ children, tone = "muted" }: { children: React.ReactNode; tone?: "muted" | "red" | "pencil" | "accent" }) {
-  const color = `var(--${tone})`;
-  return <span className="tag" style={{ color }}>{children}</span>;
+  return <span className="tag" style={{ color: `var(--${tone})` }}>{children}</span>;
 }
 
 /** The disclosure chevron, drawn rather than typed. */
@@ -32,9 +30,9 @@ function Chevron() {
 
 export default async function MembersPage({ searchParams }: { searchParams: Promise<Filters> }) {
   const admin = await requireAdmin();
-  const { q = "", role = "", status = "", team = "" } = await searchParams;
+  const { q = "", role = "", status = "", team = "", standing = "", phone = "" } = await searchParams;
   const repo = getRepo();
-  const [profiles, roster, passkeys, groups, memberships, reserved, edits, { semester, byUser }] = await Promise.all([
+  const [profiles, roster, passkeys, groups, memberships, reserved, edits, { semester, byUser, meetings, attendance }] = await Promise.all([
     repo.listProfiles(), repo.listRoster(), repo.listPasskeys(), repo.listGroups(), repo.listGroupMembers(),
     repo.listRosterGroups(), repo.listMemberEdits("pending"), standings(repo),
   ]);
@@ -42,6 +40,7 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
   const signedUp = new Set(profiles.map((p) => p.email));
   const nameOf = new Map([...roster, ...profiles].map((p) => [p.email, p.name]));
   const byId = new Map(profiles.map((p) => [p.id, p]));
+  const meetingById = new Map(meetings.map((m) => [m.id, m]));
   const isApprover = !!admin.approver;
   const anyApprover = profiles.some((p) => p.role === "admin" && p.approver);
 
@@ -56,248 +55,262 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
     ...memberships.filter((m) => m.groupId === team).map((m) => byId.get(m.userId)?.email),
     ...reserved.filter((r) => r.groupId === team).map((r) => r.email),
   ]);
-  const matches = (p: Profile | RosterEntry, active: boolean | null) =>
+  const matches = (p: Profile | RosterEntry) =>
     words.every((w) => `${p.name} ${p.email} ${p.rollNo ?? ""}`.toLowerCase().includes(w)) &&
     (!role || (role === "approver" ? p.role === "admin" && "approver" in p && !!p.approver : p.role === role)) &&
-    (!status || (status === "not_joined" ? active === null : status === (active ? "active" : "inactive"))) &&
     (!team || inTeam.has(p.email));
+  // Standing, phone and active/inactive only make sense for people who have signed in.
+  const matchesProfile = (p: Profile) => matches(p) &&
+    (!status || (status === "active" ? p.active : status === "inactive" ? !p.active : false)) &&
+    (!standing || rankOf(p) === (standing === "flagged" ? RANK.flagged : RANK.warning)) &&
+    (!phone || (phone === "none") !== hasPasskey.has(p.id));
   const allNotJoined = roster.filter((r) => !signedUp.has(r.email));
   // Flagged first, then warnings, then everyone else by name, so the people who need attention are on top.
-  const shownProfiles = profiles.filter((p) => matches(p, p.active))
-    .sort((a, b) => rankOf(b) - rankOf(a) || a.name.localeCompare(b.name));
-  const notJoined = allNotJoined.filter((r) => matches(r, null));
-  const filtering = !!(q || role || status || team);
+  const shownProfiles = profiles.filter(matchesProfile).sort((a, b) => rankOf(b) - rankOf(a) || a.name.localeCompare(b.name));
+  const notJoined = !standing && !phone && (!status || status === "not_joined") ? allNotJoined.filter(matches) : [];
+  const filtering = !!(q || role || status || team || standing || phone);
   const flagged = profiles.filter((p) => rankOf(p) === RANK.flagged).length;
+  const noPhone = profiles.filter((p) => p.active && !hasPasskey.has(p.id)).length;
+
+  /** The meetings a member was marked absent at this semester, in the counts that are tracked for them. */
+  const missedFor = (p: Profile) => {
+    const counted = new Set(scopesOf(p).map((s) => s.group?.id ?? ""));
+    return attendance
+      .filter((a) => a.userId === p.id && a.status === "absent")
+      .flatMap((a) => { const m = meetingById.get(a.meetingId); return m && counted.has(m.groupId ?? "") ? [m] : []; })
+      .sort((a, b) => b.startsAt.localeCompare(a.startsAt));
+  };
+  const groupName = new Map(groups.map((g) => [g.id, g.name]));
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-1">
-        <h1 className="text-2xl font-bold">Members</h1>
-        <p className="muted text-sm tabular-nums">
-          {profiles.length} signed up · {allNotJoined.length} not signed in yet
-          {flagged > 0 && <> · <Link href="#members" className="font-semibold text-[var(--red)]">{flagged} flagged</Link></>}
-        </p>
-      </div>
-
-      {!anyApprover && (
-        <p className="alert">
-          Nobody can approve member edits yet, so other admins&apos; edits will wait. Whoever set up the app can make you an approver (see &ldquo;approver&rdquo; in the README).
-        </p>
-      )}
-
-      {edits.length > 0 && (
-        <details className="card disclosure" id="approvals">
-          <summary>
-            <span className="font-semibold">{edits.length} {edits.length === 1 ? "edit" : "edits"} waiting for approval</span>
-            <Chevron />
-          </summary>
-          <ul className="mt-3 divide-y text-sm" style={{ borderColor: "var(--border)" }}>
-            {edits.map((e) => {
-              const name = nameOf.get(e.targetEmail) ?? e.targetEmail;
-              return (
-                <li key={e.id} className="flex flex-wrap items-start justify-between gap-3 py-3">
-                  <div className="space-y-1">
-                    <div><strong>{name}</strong> <span className="muted text-xs">requested by {byId.get(e.requestedBy ?? "")?.name ?? "a former admin"}</span></div>
-                    <ul className="muted text-xs">
-                      {(Object.keys(e.changes) as (keyof MemberChanges)[]).map((k) => (
-                        <li key={k}>{CHANGE_LABEL[k]}: <span className="text-[var(--fg)]">{k === "role" ? (e.changes.role === "admin" ? "Admin" : "Member (removes admin rights)") : e.changes[k] || "none"}</span></li>
-                      ))}
-                    </ul>
-                  </div>
-                  {isApprover ? <ReviewEditForm editId={e.id} name={name} /> : <span className="muted text-xs">An approver has to accept this.</span>}
-                </li>
-              );
-            })}
-          </ul>
-        </details>
-      )}
-
-      <details className="card disclosure">
-        <summary>
-          <span className="font-semibold">Import members from Excel</span>
-          <Chevron />
-        </summary>
-        <div className="mt-3"><ImportRosterForm /></div>
-      </details>
-
-      <form method="get" role="search" aria-label="Find members" className="flex flex-wrap gap-2">
-        <div className="flex w-full gap-2 lg:w-auto lg:flex-1">
-          <input name="q" defaultValue={q} className="input" placeholder="Name, SNU mail ID or roll no." aria-label="Search members" />
-          <button className="btn">Search</button>
+    <OutcomeProvider>
+      <div className="space-y-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold">Members</h1>
+          <p className="muted text-sm tabular-nums">
+            {profiles.length} signed up
+            {allNotJoined.length > 0 && <> · <Link href="?status=not_joined" className="underline underline-offset-4">{allNotJoined.length} not signed in yet</Link></>}
+            {flagged > 0 && <> · <Link href="?standing=flagged" className="font-semibold text-[var(--red)] underline underline-offset-4">{flagged} flagged</Link></>}
+            {noPhone > 0 && <> · <Link href="?phone=none" className="underline underline-offset-4">{noPhone} without a phone</Link></>}
+          </p>
         </div>
-        <select name="role" defaultValue={role} className="input min-w-0 flex-1 lg:w-auto lg:flex-none" aria-label="Rights">
-          <option value="">Everyone</option>
-          <option value="member">Members</option>
-          <option value="admin">Admins</option>
-          <option value="approver">Approvers</option>
-          <option value="advisor">Advisors</option>
-        </select>
-        <select name="status" defaultValue={status} className="input min-w-0 flex-1 lg:w-auto lg:flex-none" aria-label="Status">
-          <option value="">Any status</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-          <option value="not_joined">Not signed in yet</option>
-        </select>
-        <select name="team" defaultValue={team} className="input min-w-0 flex-1 lg:w-auto lg:flex-none" aria-label="Team">
-          <option value="">All teams</option>
-          {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-        </select>
-        {filtering && <Link href="/admin/members" className="btn-ghost btn-tall">Clear</Link>}
-      </form>
 
-      {filtering && (
-        <p className="muted text-sm tabular-nums" aria-live="polite">
-          Showing {shownProfiles.length} of {profiles.length} signed up and {notJoined.length} of {allNotJoined.length} not signed in yet.
-        </p>
-      )}
-      {filtering && shownProfiles.length + notJoined.length === 0 && (
-        <p className="text-sm">Nobody matches. <Link href="/admin/members" className="underline underline-offset-4">Clear the filters</Link> to see everyone.</p>
-      )}
+        {!anyApprover && (
+          <p className="alert">Nobody can approve member edits yet, so other admins&apos; edits will wait. Ask the tech lead to make you an approver.</p>
+        )}
 
-      {shownProfiles.length > 0 && (
-        <section id="members" aria-labelledby="signed-up-heading" className="space-y-2">
-          <h2 id="signed-up-heading" className="font-semibold">Signed up <span className="muted font-normal tabular-nums">({shownProfiles.length})</span></h2>
-          <ul className="card member-list">
-            {shownProfiles.map((p) => {
-              const scopes = scopesOf(p);
-              const self = p.id === admin.id;
-              const phone = hasPasskey.has(p.id);
-              return (
-                <li key={p.id}>
-                  <article aria-label={p.name}>
+        {edits.length > 0 && (
+          <details className="card disclosure" id="approvals" open={isApprover}>
+            <summary>
+              <span className="font-semibold">{edits.length} {edits.length === 1 ? "edit" : "edits"} waiting for approval</span>
+              <Chevron />
+            </summary>
+            <ul className="mt-3 divide-y text-sm" style={{ borderColor: "var(--border)" }}>
+              {edits.map((e) => {
+                const name = nameOf.get(e.targetEmail) ?? e.targetEmail;
+                return (
+                  <li key={e.id} className="flex flex-wrap items-start justify-between gap-3 py-3">
+                    <div className="space-y-1">
+                      <div><strong>{name}</strong> <span className="muted text-xs">requested by {byId.get(e.requestedBy ?? "")?.name ?? "a former admin"}</span></div>
+                      <ul className="muted text-xs">
+                        {(Object.keys(e.changes) as (keyof MemberChanges)[]).map((k) => (
+                          <li key={k}>{CHANGE_LABEL[k]}: <span className="text-[var(--fg)]">{k === "role" ? (e.changes.role === "admin" ? "Admin" : "Member (removes admin rights)") : e.changes[k] || "none"}</span></li>
+                        ))}
+                      </ul>
+                    </div>
+                    {isApprover ? <ReviewEditForm editId={e.id} name={name} /> : <span className="muted text-xs">An approver has to accept this.</span>}
+                  </li>
+                );
+              })}
+            </ul>
+          </details>
+        )}
+
+        {/* Re-created when the URL changes, so the fields always show the filters in use. */}
+        <MemberFilters key={JSON.stringify({ q, role, status, team, standing, phone })} values={{ q, role, status, team, standing, phone }} groups={groups} />
+
+        {filtering && (
+          <p className="muted text-sm tabular-nums" aria-live="polite">
+            {/* Only the counts that apply: "not signed in" has no signed-up half, and "0 of 0" says nothing. */}
+            Showing {[
+              status !== "not_joined" && `${shownProfiles.length} of ${profiles.length} signed up`,
+              allNotJoined.length > 0 && !standing && !phone && `${notJoined.length} of ${allNotJoined.length} not signed in yet`,
+            ].filter(Boolean).join(" and ") || "nobody"}.{" "}
+            <Link href="/admin/members" className="underline underline-offset-4">Clear filters</Link>
+          </p>
+        )}
+        {filtering && shownProfiles.length + notJoined.length === 0 && (
+          <p className="text-sm">
+            {status === "not_joined" && allNotJoined.length === 0 ? "Everyone on the roster has signed in."
+              : standing === "flagged" ? "Nobody is flagged. Everyone is under 3 strikes."
+              : phone === "none" ? "Everyone has registered a phone."
+              : "Nobody matches these filters."}
+          </p>
+        )}
+
+        {shownProfiles.length > 0 && (
+          <section id="members" aria-labelledby="signed-up-heading" className="space-y-2">
+            <h2 id="signed-up-heading" className="font-semibold">Signed up <span className="muted font-normal tabular-nums">({shownProfiles.length})</span></h2>
+            <ul className="card member-list">
+              {shownProfiles.map((p) => {
+                const scopes = scopesOf(p);
+                const self = p.id === admin.id;
+                const registered = hasPasskey.has(p.id);
+                const rank = rankOf(p);
+                const missed = rank > RANK.ok ? missedFor(p) : [];
+                return (
+                  <li key={p.id}>
+                    <article aria-label={p.name}>
+                      <details className="member-row">
+                        <summary>
+                          <span className="min-w-0">
+                            <span className={`font-semibold ${p.active ? "" : "muted"}`}>{p.name}</span>
+                            <span className="ml-2 inline-flex flex-wrap gap-x-2 align-baseline">
+                              {p.rollNo && <span className="muted text-xs tabular-nums">{p.rollNo}</span>}
+                              {ROLE_LABEL[p.role] && <Tag tone="accent">{ROLE_LABEL[p.role]}</Tag>}
+                              {p.role === "admin" && p.approver && <Tag tone="accent">Approver</Tag>}
+                              {rank === RANK.flagged && <Tag tone="red">Flagged</Tag>}
+                              {rank === RANK.warning && <Tag tone="pencil">Warning</Tag>}
+                              {!p.active && <Tag>Inactive</Tag>}
+                            </span>
+                          </span>
+                          <span className="row-marks text-xs">
+                            {p.role === "advisor" && <span className="muted">No attendance requirement</span>}
+                            {scopes.map((s) => (
+                              <span key={s.group?.id ?? "all"} className="inline-flex items-center gap-1">
+                                <span className="muted">{scopeLabel(s)}</span> <StrikeHoles points={s.summary.points} size="0.5rem" />
+                              </span>
+                            ))}
+                          </span>
+                          <Chevron />
+                        </summary>
+
+                        <MemberPanel
+                          name={p.name}
+                          standing={
+                            <div className="space-y-1">
+                              <h3 className="text-sm font-semibold">Standing{semester && <span className="muted font-normal"> · {semester.name}</span>}</h3>
+                              <p className="muted break-all text-xs">{p.email}</p>
+                              {scopes.length === 0 && <p className="muted text-xs">{p.role === "advisor" ? "Advisor, no attendance requirement." : "Admin, not tracked for full body. Not in any group yet."}</p>}
+                              <div className="flex flex-wrap gap-x-4 gap-y-1">
+                                {scopes.map((s) => (
+                                  <div key={s.group?.id ?? "all"} className="flex items-center gap-1 text-xs">
+                                    <span className="muted">{scopeLabel(s)}:</span> <LevelBadge level={s.summary.level} points={s.summary.points} />
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          }
+                          review={rank > RANK.ok ? {
+                            missed: missed.length ? (
+                              <ul className="space-y-1 text-sm">
+                                {missed.map((m) => (
+                                  <li key={m.id} className="flex flex-wrap items-center justify-between gap-2">
+                                    <span>Missed <strong>{m.title}</strong> <span className="muted text-xs">{m.groupId ? groupName.get(m.groupId) : "Full body"} · {fmt(m.startsAt)}</span></span>
+                                    <Link href={`/admin/excuses?meetingId=${m.id}&userId=${p.id}`} className="btn-ghost text-sm" aria-label={`Excuse ${p.name} for ${m.title}`}>Excuse</Link>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : <p className="muted text-xs">These points come from manual adjustments, not missed meetings.</p>,
+                            deactivate: p.active && !self ? (
+                              <ActionForm action={setActive} fields={{ userId: p.id, active: "false" }} label="Deactivate" name={`Deactivate ${p.name}`}
+                                confirm={`Deactivate ${p.name}? They can't sign in or check in until reactivated. Their records are kept.`} />
+                            ) : undefined,
+                          } : undefined}
+                          sections={[
+                            ...(scopes.length > 0 ? [{ key: "strikes", label: "Adjust strikes", node: (
+                              <StrikeForm userId={p.id} name={p.name} semesterId={semester?.id ?? ""}
+                                scopes={scopes.map((s) => ({ value: s.group?.id ?? "", label: scopeLabel(s) }))} />
+                            ) }] : []),
+                            { key: "details", label: "Edit details", node: (
+                              <div className="space-y-3">
+                                <EditMemberForm member={p} isApprover={isApprover} isSelf={self} />
+                                {isApprover && p.role === "admin" && !self && (
+                                  <ActionForm action={setApprover} fields={{ userId: p.id, approver: String(!p.approver) }}
+                                    label={p.approver ? "Remove approver rights" : "Make approver"} name={`${p.approver ? "Remove approver rights" : "Make approver"}: ${p.name}`}
+                                    confirm={p.approver ? `Remove ${p.name}'s approver rights? Their member edits will need approval again.` : undefined} />
+                                )}
+                              </div>
+                            ) },
+                            { key: "phone", label: "Phone", node: (
+                              <div className="flex flex-wrap items-center gap-3">
+                                <span className="text-sm">{registered ? "Registered" : "Not registered yet. They'll be asked to register when they first check in."}</span>
+                                {registered && (
+                                  <ActionForm action={resetPasskey} fields={{ userId: p.id }} label="Reset phone" name={`Reset phone for ${p.name}`} pendingLabel="Resetting…" toast
+                                    confirm={`Reset ${p.name}'s phone? They'll need to register their phone again before their next check-in.`} />
+                                )}
+                              </div>
+                            ) },
+                          ]}
+                          more={self ? undefined : (
+                            <div className="danger-zone">
+                              <div className="flex flex-wrap items-start gap-3">
+                                <ActionForm action={setActive} fields={{ userId: p.id, active: String(!p.active) }}
+                                  label={p.active ? "Deactivate" : "Reactivate"} name={`${p.active ? "Deactivate" : "Reactivate"} ${p.name}`}
+                                  confirm={p.active ? `Deactivate ${p.name}? They can't sign in or check in until reactivated. Their records are kept.` : undefined} />
+                                <ActionForm action={deleteMember} fields={{ userId: p.id }} label="Delete" name={`Delete ${p.name}`} pendingLabel="Deleting…" toast
+                                  className="btn-ghost text-sm text-[var(--red)]"
+                                  confirm={`Delete ${p.name}? Their login, attendance, excuses and group memberships are removed and they can't sign in again unless re-added. This can't be undone.`} />
+                              </div>
+                              <p className="muted text-xs">Deactivating keeps their history; deleting removes it for good.</p>
+                            </div>
+                          )}
+                        />
+                      </details>
+                    </article>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
+
+        {notJoined.length > 0 && (
+          <section aria-labelledby="not-joined-heading" className="space-y-2">
+            <h2 id="not-joined-heading" className="font-semibold">Not signed in yet <span className="muted font-normal tabular-nums">({notJoined.length})</span></h2>
+            <ul className="card member-list">
+              {notJoined.map((r) => (
+                <li key={r.email}>
+                  <article aria-label={r.name}>
                     <details className="member-row">
                       <summary>
                         <span className="min-w-0">
-                          <span className={`font-semibold ${p.active ? "" : "muted"}`}>{p.name}</span>
+                          <span className="font-semibold">{r.name}</span>
                           <span className="ml-2 inline-flex flex-wrap gap-x-2 align-baseline">
-                            {p.rollNo && <span className="muted text-xs tabular-nums">{p.rollNo}</span>}
-                            {ROLE_LABEL[p.role] && <Tag tone="accent">{ROLE_LABEL[p.role]}</Tag>}
-                            {p.role === "admin" && p.approver && <Tag tone="accent">Approver</Tag>}
-                            {rankOf(p) === RANK.flagged && <Tag tone="red">Flagged</Tag>}
-                            {rankOf(p) === RANK.warning && <Tag tone="pencil">Warning</Tag>}
-                            {!p.active && <Tag tone="red">Inactive</Tag>}
-                            {!phone && <Tag>No phone</Tag>}
+                            {r.rollNo && <span className="muted text-xs tabular-nums">{r.rollNo}</span>}
+                            {ROLE_LABEL[r.role] && <Tag tone="accent">{ROLE_LABEL[r.role]}</Tag>}
                           </span>
                         </span>
-                        <span className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-xs">
-                          {p.role === "advisor" && <span className="muted">No attendance requirement</span>}
-                          {scopes.map((s) => (
-                            <span key={s.group?.id ?? "all"} className="inline-flex items-center gap-1" title={`${scopeLabel(s)}: ${s.summary.points} pts`}>
-                              <span className="muted">{scopeLabel(s)}</span> <StrikeHoles points={s.summary.points} size="0.5rem" />
-                            </span>
-                          ))}
-                        </span>
+                        <span className="row-marks muted break-all text-xs">{r.email}</span>
                         <Chevron />
                       </summary>
-
-                      <div className="member-detail">
-                        <p className="muted break-all text-xs">{[p.email, p.rollNo, p.role === "member" ? "Member" : ROLE_LABEL[p.role]].filter(Boolean).join(" · ")}</p>
-
-                        <div className="space-y-1">
-                          <h3 className="text-sm font-semibold">Standing{semester && <span className="muted font-normal"> ({semester.name})</span>}</h3>
-                          {scopes.length === 0 && <p className="muted text-xs">{p.role === "advisor" ? "Advisor, no attendance requirement." : "Admin, not tracked for full body. Not in any group yet."}</p>}
-                          <div className="flex flex-wrap gap-x-4 gap-y-1">
-                            {scopes.map((s) => (
-                              <div key={s.group?.id ?? "all"} className="flex items-center gap-1 text-xs">
-                                <span className="muted">{scopeLabel(s)}:</span> <LevelBadge level={s.summary.level} points={s.summary.points} />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {scopes.length > 0 && (
-                          <div className="space-y-1">
-                            <h3 className="text-sm font-semibold">Adjust strikes</h3>
-                            <StrikeForm userId={p.id} name={p.name} semesterId={semester?.id ?? ""}
-                              scopes={scopes.map((s) => ({ value: s.group?.id ?? "", label: scopeLabel(s) }))} />
-                          </div>
-                        )}
-
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                          <h3 className="text-sm font-semibold">Phone</h3>
-                          <span className="text-sm">{phone ? "Registered" : "Not registered yet"}</span>
-                          {phone && (
-                            <ActionForm action={resetPasskey} fields={{ userId: p.id }} label="Reset phone" name={`Reset ${p.name}'s phone`} pendingLabel="Resetting…"
-                              confirm={`Reset ${p.name}'s phone? They'll need to register their phone again before their next check-in.`} />
-                          )}
-                        </div>
-
-                        <div className="space-y-2">
-                          <h3 className="text-sm font-semibold">Details</h3>
-                          <EditMemberForm member={p} isApprover={isApprover} isSelf={self} />
-                          {isApprover && p.role === "admin" && !self && (
-                            <ActionForm action={setApprover} fields={{ userId: p.id, approver: String(!p.approver) }}
-                              label={p.approver ? "Remove approver rights" : "Make approver"}
-                              name={p.approver ? `Remove ${p.name}'s approver rights` : `Make ${p.name} an approver`}
-                              confirm={p.approver ? `Remove ${p.name}'s approver rights? Their member edits will need approval again.` : undefined} />
-                          )}
-                        </div>
-
-                        {!self && (
+                      <MemberPanel
+                        name={r.name}
+                        standing={<p className="muted text-xs">Hasn&apos;t signed in yet. Strikes start counting from their first meeting after signing in.</p>}
+                        sections={[{ key: "details", label: "Edit details", node: <EditMemberForm member={r} isApprover={isApprover} isSelf={false} /> }]}
+                        more={
                           <div className="danger-zone">
-                            <h3 className="text-sm font-semibold text-[var(--red)]">Danger zone</h3>
-                            <div className="flex flex-wrap items-start gap-2">
-                              <ActionForm action={setActive} fields={{ userId: p.id, active: String(!p.active) }}
-                                label={p.active ? "Deactivate" : "Reactivate"} name={`${p.active ? "Deactivate" : "Reactivate"} ${p.name}`}
-                                confirm={p.active ? `Deactivate ${p.name}? They can't sign in or check in until reactivated. Their records are kept.` : undefined} />
-                              <ConfirmForm
-                                action={deleteMember}
-                                fields={{ userId: p.id }}
-                                label="Delete"
-                                className="btn-ghost text-sm text-[var(--red)]"
-                                confirm={`Delete ${p.name}? Their login, attendance, excuses and group memberships are removed and they can't sign in again unless re-added. This can't be undone.`}
-                              />
-                            </div>
-                            <p className="muted text-xs">Deactivating keeps their history; deleting removes it for good.</p>
+                            <ActionForm action={deleteRosterEntry} fields={{ email: r.email }} label="Remove" name={`Remove ${r.name}`} pendingLabel="Removing…" toast
+                              className="btn-ghost text-sm text-[var(--red)]" confirm={`Remove ${r.name} (${r.email})? They won't be able to sign in.`} />
                           </div>
-                        )}
-                      </div>
+                        }
+                      />
                     </details>
                   </article>
                 </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
+              ))}
+            </ul>
+          </section>
+        )}
 
-      {notJoined.length > 0 && (
-        <section aria-labelledby="not-joined-heading" className="space-y-2">
-          <h2 id="not-joined-heading" className="font-semibold">Not signed in yet <span className="muted font-normal tabular-nums">({notJoined.length})</span></h2>
-          <ul className="card member-list">
-            {notJoined.map((r) => (
-              <li key={r.email}>
-                <article aria-label={r.name}>
-                  <details className="member-row">
-                    <summary>
-                      <span className="min-w-0">
-                        <span className="font-semibold">{r.name}</span>
-                        <span className="ml-2 inline-flex flex-wrap gap-x-2 align-baseline">
-                          {r.rollNo && <span className="muted text-xs tabular-nums">{r.rollNo}</span>}
-                          {ROLE_LABEL[r.role] && <Tag tone="accent">{ROLE_LABEL[r.role]}</Tag>}
-                        </span>
-                      </span>
-                      <span className="muted break-all text-right text-xs">{r.email}</span>
-                      <Chevron />
-                    </summary>
-                    <div className="member-detail">
-                      <div className="space-y-2">
-                        <h3 className="text-sm font-semibold">Details</h3>
-                        <EditMemberForm member={r} isApprover={isApprover} isSelf={false} />
-                      </div>
-                      <div className="danger-zone">
-                        <h3 className="text-sm font-semibold text-[var(--red)]">Danger zone</h3>
-                        <ConfirmForm action={deleteRosterEntry} fields={{ email: r.email }} label="Remove" pendingLabel="Removing…"
-                          className="btn-ghost text-sm text-[var(--red)]" confirm={`Remove ${r.name} (${r.email})? They won't be able to sign in.`} />
-                      </div>
-                    </div>
-                  </details>
-                </article>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-    </div>
+        <details className="card disclosure">
+          <summary>
+            <span className="font-semibold">Import members from Excel</span>
+            <Chevron />
+          </summary>
+          <div className="mt-3"><ImportRosterForm /></div>
+        </details>
+      </div>
+    </OutcomeProvider>
   );
 }

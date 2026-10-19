@@ -26,6 +26,9 @@ async function requireMeetingManager(meetingId: string): Promise<{ actorId: stri
   return { actorId: staff.user.id, meeting };
 }
 
+/** A readable name for a member-edit message, falling back to the SNU mail ID. */
+const wantedName = (email: string, m: { name: string } | null) => m?.name ?? email;
+
 /** Admins with approver rights: they approve other admins' member edits and appoint approvers. */
 async function requireApprover() {
   const admin = await requireAdmin();
@@ -350,28 +353,32 @@ export async function deleteGroup(formData: FormData) {
   redirect("/admin/groups");
 }
 
-export async function deleteMember(formData: FormData) {
+export async function deleteMember(_prev: FormState, formData: FormData): Promise<FormState> {
   const admin = await requireAdmin();
   const userId = str(formData, "userId");
-  if (!userId || userId === admin.id) return; // admins can't delete themselves
+  if (!userId || userId === admin.id) return { error: "You can't delete yourself." };
   const repo = getRepo();
   const profile = await repo.getProfile(userId);
-  if (!profile) return;
+  if (!profile) return { error: "That member was already deleted." };
   await repo.deleteMember(userId);
   await repo.addAudit({ actorId: admin.id, action: "member.delete", target: null, details: { name: profile.name, email: profile.email } });
   refreshAll();
+  return { ok: `Deleted ${profile.name}. Their records are gone.` };
 }
 
 /** Remove someone who was added but never signed in. */
-export async function deleteRosterEntry(formData: FormData) {
+export async function deleteRosterEntry(_prev: FormState, formData: FormData): Promise<FormState> {
   const admin = await requireAdmin();
   const email = str(formData, "email").toLowerCase();
-  if (!email) return;
   const repo = getRepo();
-  if ((await repo.listProfiles()).some((p) => p.email === email)) return; // signed-up members go through deleteMember
+  const entry = email ? await repo.getRosterEntry(email) : null;
+  if (!entry) return { error: "That person was already removed." };
+  // Signed-up members go through deleteMember.
+  if ((await repo.listProfiles()).some((p) => p.email === email)) return { error: `${entry.name} has signed in; delete them from their row instead.` };
   await repo.deleteRosterEntry(email);
   await repo.addAudit({ actorId: admin.id, action: "roster.delete", target: null, details: { email } });
   refreshAll();
+  return { ok: `Removed ${entry.name}. They can't sign in now.` };
 }
 
 /** Remove a reserved team place for someone who hasn't signed in yet. */
@@ -419,7 +426,7 @@ export async function reviewMemberEdit(_prev: FormState, formData: FormData): Pr
     await repo.setMemberEditStatus(edit.id, "rejected", approver.id);
     await repo.addAudit({ actorId: approver.id, action: "member.edit_rejected", target: edit.targetEmail, details: { editId: edit.id } });
     refreshAll();
-    return { ok: "Rejected." };
+    return { ok: `Rejected the edit to ${wantedName(edit.targetEmail, await repo.getRosterEntry(edit.targetEmail))}.` };
   }
   const wanted = await detailsAfter(repo, edit.targetEmail, edit.changes);
   const checked: { changes: MemberChanges } | { error: string } = wanted
@@ -430,7 +437,7 @@ export async function reviewMemberEdit(_prev: FormState, formData: FormData): Pr
   await repo.setMemberEditStatus(edit.id, "approved", approver.id);
   await repo.addAudit({ actorId: approver.id, action: "member.edit_approved", target: edit.targetEmail, details: { editId: edit.id, ...checked.changes } });
   refreshAll();
-  return { ok: "Approved and applied." };
+  return { ok: `Approved: ${wantedName(edit.targetEmail, wanted)} is updated.` };
 }
 
 /** Approvers appoint or remove other approvers. Only admins can be approvers, and nobody changes their own rights. */

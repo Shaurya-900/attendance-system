@@ -6,9 +6,13 @@ import { addExcuseForMember } from "../actions";
 
 export interface ExcuseMeetingOption { id: string; label: string; memberIds: string[] }
 
-export function AddExcuseForm({ meetings, members }: { meetings: ExcuseMeetingOption[]; members: { id: string; name: string }[] }) {
+export function AddExcuseForm({ meetings, members, initial = {} }: {
+  meetings: ExcuseMeetingOption[];
+  members: { id: string; name: string }[];
+  initial?: { meetingId?: string; userId?: string };
+}) {
   const [state, action, pending] = useActionState(addExcuseForMember, null);
-  const [meetingId, setMeetingId] = useState(meetings[0]?.id ?? "");
+  const [meetingId, setMeetingId] = useState(meetings.some((m) => m.id === initial.meetingId) ? initial.meetingId! : meetings[0]?.id ?? "");
   const allowed = new Set(meetings.find((m) => m.id === meetingId)?.memberIds ?? []);
   const options = members.filter((m) => allowed.has(m.id));
   if (meetings.length === 0) return null;
@@ -25,7 +29,7 @@ export function AddExcuseForm({ meetings, members }: { meetings: ExcuseMeetingOp
         </label>
         <label className="space-y-1 text-sm">
           <span className="muted">Member</span>
-          <select name="userId" className="input" required>
+          <select name="userId" className="input" required defaultValue={initial.userId}>
             {options.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
           </select>
         </label>
