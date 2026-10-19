@@ -5,7 +5,8 @@ import { canManageGroup, requireStaff } from "@/lib/auth";
 import { expectedFrom } from "@/lib/meetings";
 import { getRepo } from "@/lib/repo";
 import { ConfirmForm } from "@/components/confirm-form";
-import { deleteMeeting, endMeeting, overrideAttendance, startMeeting } from "../../actions";
+import { deleteMeeting, endMeeting, startMeeting } from "../../actions";
+import { OverrideForm } from "./override-form";
 
 export default async function MeetingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -53,28 +54,19 @@ export default async function MeetingPage({ params }: { params: Promise<{ id: st
         />
       </div>
 
+      {/* On phones each row stacks into its own block; data-label names each cell. */}
       <div className="card overflow-x-auto">
-        <table className="data">
-          <thead><tr><th>Member</th><th>Status</th><th>Checked in</th><th>Override</th></tr></thead>
-          <tbody>
+        <table className="data stack" role="table">
+          <thead role="rowgroup"><tr role="row"><th role="columnheader">Member</th><th role="columnheader">Status</th><th role="columnheader">Checked in</th><th role="columnheader">Override</th></tr></thead>
+          <tbody role="rowgroup">
             {members.map((p) => {
               const r = recordFor.get(p.id);
               return (
-                <tr key={p.id}>
-                  <td>{p.name} <span className="muted text-xs">{p.rollNo}</span></td>
-                  <td>{r ? <StatusBadge status={r.status} /> : <span className="muted">-</span>}{r && <Flags flags={r.flags} />}{r?.source === "manual" && r.checkedInAt && <span className="muted text-xs"> (edited)</span>}</td>
-                  <td>{fmt(r?.checkedInAt ?? null)}</td>
-                  <td>
-                    <form action={overrideAttendance} className="flex flex-wrap gap-1">
-                      <input type="hidden" name="meetingId" value={id} />
-                      <input type="hidden" name="userId" value={p.id} />
-                      <select name="status" defaultValue={r?.status ?? "present"} className="input w-auto py-1 text-xs">
-                        {["present", "late", "absent", "excused"].map((s) => <option key={s}>{s}</option>)}
-                      </select>
-                      <input name="reason" required placeholder="Reason" className="input w-28 py-1 text-xs" />
-                      <button className="btn-ghost py-1 text-xs">Save</button>
-                    </form>
-                  </td>
+                <tr key={p.id} role="row">
+                  <td role="cell"><span className="font-semibold">{p.name}</span> <span className="muted text-xs tabular-nums">{p.rollNo}</span></td>
+                  <td role="cell" data-label="Status">{r ? <StatusBadge status={r.status} /> : <span className="muted">-</span>}{r && <Flags flags={r.flags} />}{r?.source === "manual" && r.checkedInAt && <span className="muted text-xs"> (edited)</span>}</td>
+                  <td role="cell" data-label="Checked in" className="tabular-nums">{fmt(r?.checkedInAt ?? null)}</td>
+                  <td role="cell"><OverrideForm meetingId={id} userId={p.id} name={p.name} status={r?.status ?? null} /></td>
                 </tr>
               );
             })}
