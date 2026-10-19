@@ -47,7 +47,7 @@ export function AddMembersForm({ groupId, candidates, notJoined }: {
           </div>
           <div className="max-h-56 space-y-1 overflow-y-auto text-sm">
             {rows.map((r) => (
-              <label key={r.key} hidden={!match(r.c)} className="flex min-h-9 items-center gap-2">
+              <label key={r.key} hidden={!match(r.c)} className="flex min-h-9 items-center gap-2 pointer-coarse:min-h-11">
                 <input type="checkbox" name={r.name} value={r.value} className="size-5"
                   checked={selected.has(r.key)} onChange={(e) => toggle(r.key, e.target.checked)} />
                 {r.c.name} <span className="muted text-xs">{r.c.rollNo}{r.note}</span>

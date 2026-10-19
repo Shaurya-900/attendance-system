@@ -38,6 +38,8 @@ h1 { letter-spacing: -0.02em; }
 @layer components {
 .card { background: var(--card); border: 1px solid var(--border); border-radius: 0.75rem; padding: 1rem; }
 .muted { color: var(--muted); }
+.skip-link { position: absolute; left: 1rem; top: -4rem; z-index: 50; }
+.skip-link:focus { top: .5rem; }
 
 .btn {
   min-height: 2.75rem; display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
@@ -107,6 +109,8 @@ details[open] > summary .chevron { transform: rotate(180deg); }
   padding-inline: .375rem; border-radius: .25rem; border: 1px solid color-mix(in oklab, currentColor 35%, transparent);
 }
 
+/* Touch screens: every button and field at least 44px tall. Desktop stays compact. */
+@media (pointer: coarse) { .btn-ghost, .input { min-height: 2.75rem; } }
 .input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
 /* Messages are written on the page in ink, not boxed: notes and warnings in blue-black ink, errors in red pen. */
@@ -118,6 +122,17 @@ table.data { width: 100%; font-size: .875rem; border-collapse: collapse; }
 table.data th { text-align: left; font-weight: 600; color: var(--muted); padding: .5rem; border-bottom: 2px solid var(--border); }
 table.data td { padding: .5rem; border-bottom: 1px solid var(--border); vertical-align: top; }
 table.data tbody tr:hover td { background: color-mix(in srgb, var(--accent-soft) 45%, transparent); }
+/* Tables marked .stack become one block per row on phones; each cell's data-label says what it is.
+   Roles are set in the markup, so screen readers still read rows and cells. */
+@media (max-width: 40rem) {
+  table.stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  table.stack, table.stack tbody { display: block; }
+  table.stack tr { display: grid; gap: .5rem; padding: .875rem .25rem; border-bottom: 1px solid var(--border); }
+  table.stack td { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem; padding: 0; border: 0; }
+  table.stack td[data-label]::before { content: attr(data-label); min-width: 6rem; font-size: .75rem; color: var(--muted); }
+  table.stack td > form { width: 100%; }
+  table.stack tbody tr:hover td { background: none; }
+}
 /* The red margin line of a paper register, on the member's own history. */
 table.register td:first-child:not([colspan]), table.register th:first-child { border-right: 2px solid color-mix(in srgb, var(--red) 45%, transparent); }
 }

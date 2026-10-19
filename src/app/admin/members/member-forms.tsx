@@ -38,10 +38,11 @@ export function StrikeForm({ userId, name, semesterId, scopes }: {
   scopes: { value: string; label: string }[];
 }) {
   const [state, run, pending] = useActionState(adjustStrikes, null);
-  // React clears a form after each submit; an error sends back what was typed, so it's put back.
+  // React clears a form after each submit. An error sends back what was typed, and the form is
+  // re-created from it (the key), because a dropdown doesn't pick up a changed default on its own.
   const typed = state?.values ?? {};
   return (
-    <form action={run} className="space-y-2">
+    <form key={JSON.stringify(typed)} action={run} className="space-y-2">
       <input type="hidden" name="userId" value={userId} />
       <input type="hidden" name="semesterId" value={semesterId} />
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-[auto_6rem_1fr_auto]">

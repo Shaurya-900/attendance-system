@@ -6,7 +6,7 @@ import Link from "next/link";
 import { NavLink } from "@/components/nav-link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getCurrentUser, getStaff } from "@/lib/auth";
-import { THEME_COOKIE, type Theme } from "@/lib/theme";
+import { PAPER, THEME_COOKIE, type Theme } from "@/lib/theme";
 import "./globals.css";
 import logo from "./icon.png";
 
@@ -14,11 +14,17 @@ import logo from "./icon.png";
 const body = Schibsted_Grotesk({ subsets: ["latin"], variable: "--font-body", display: "swap" });
 
 export const metadata: Metadata = { title: "E-Cell Attendance", description: "Proxy-proof attendance with a 3-strike rule" };
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  themeColor: [{ media: "(prefers-color-scheme: light)", color: "#f4f6fb" }, { media: "(prefers-color-scheme: dark)", color: "#0d1224" }],
-};
+/** The browser bar takes the page background: from the saved theme, or the device setting on Auto. */
+export async function generateViewport(): Promise<Viewport> {
+  const saved = (await cookies()).get(THEME_COOKIE)?.value;
+  return {
+    width: "device-width",
+    initialScale: 1,
+    themeColor: saved === "light" || saved === "dark"
+      ? PAPER[saved]
+      : [{ media: "(prefers-color-scheme: light)", color: PAPER.light }, { media: "(prefers-color-scheme: dark)", color: PAPER.dark }],
+  };
+}
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
@@ -28,6 +34,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" className={body.variable} data-theme={theme === "system" ? undefined : theme}>
       <body className="min-h-screen font-sans antialiased">
+        <a href="#main" className="skip-link btn">Skip to content</a>
         <header className="border-b" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
           <nav className="mx-auto flex max-w-5xl flex-wrap items-center gap-x-5 gap-y-1 px-4 py-2 text-sm [&>a]:py-2">
             <Link href="/" className="flex items-center gap-2 font-bold tracking-tight">
@@ -48,7 +55,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </div>
           </nav>
         </header>
-        <main className="mx-auto max-w-5xl px-4 py-6 sm:py-8">{children}</main>
+        <main id="main" tabIndex={-1} className="mx-auto max-w-5xl px-4 py-6 outline-none sm:py-8">{children}</main>
       </body>
     </html>
   );

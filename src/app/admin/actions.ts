@@ -89,18 +89,20 @@ export async function endMeeting(formData: FormData) {
   redirect(`/admin/meetings/${id}`);
 }
 
-export async function overrideAttendance(formData: FormData) {
+export async function overrideAttendance(_prev: FormState, formData: FormData): Promise<FormState> {
   const meetingId = str(formData, "meetingId");
   const { actorId, meeting } = await requireMeetingManager(meetingId);
   const userId = str(formData, "userId");
   const parsedStatus = z.enum(["present", "late", "absent", "excused"]).safeParse(str(formData, "status"));
   const reason = str(formData, "reason");
-  if (!parsedStatus.success || !reason) return;
+  const values = { status: str(formData, "status"), reason };
+  if (!parsedStatus.success) return { error: "Pick present, late, absent or excused.", values };
+  if (!reason) return { error: "Add a reason, so others can see why it was changed.", values };
   const status: AttendanceStatus = parsedStatus.data;
   const repo = getRepo();
   const [prev, expected] = await Promise.all([repo.getAttendance(meetingId, userId), expectedMembers(repo, meeting)]);
   // Only people this meeting is for (or who already have a record), so a lead can't mark outsiders.
-  if (!prev && !expected.some((p) => p.id === userId)) return;
+  if (!prev && !expected.some((p) => p.id === userId)) return { error: "This person isn't expected at this meeting.", values };
   await repo.upsertAttendance({
     meetingId, userId, status,
     checkedInAt: prev?.checkedInAt ?? null, credentialId: prev?.credentialId ?? null, deviceId: prev?.deviceId ?? null,
@@ -108,6 +110,7 @@ export async function overrideAttendance(formData: FormData) {
   });
   await repo.addAudit({ actorId, action: "attendance.override", target: userId, details: { meetingId, from: prev?.status ?? null, to: status, reason } });
   refreshAll();
+  return { ok: `Marked ${status}.` };
 }
 
 export async function reviewExcuse(formData: FormData) {
