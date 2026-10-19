@@ -7,7 +7,7 @@ import logo from "../icon.png";
 import { GoogleButton } from "./google-button";
 
 const errors: Record<string, string> = {
-  not_on_roster: "That account isn't on the E-Cell members list. Use your college email, or ask a core member to add you.",
+  not_on_roster: "That account isn't on the E-Cell members list. Sign in with your SNU mail ID (ending in @snu.edu.in), or ask a core member to add you.",
   inactive: "Your membership is inactive. Contact the core team.",
   auth_failed: "Sign-in failed. Please try again.",
   missing_code: "Sign-in failed. Please try again.",
@@ -24,7 +24,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <div className="space-y-3">
         <Image src={logo} alt="E-Cell" width={56} height={56} priority />
         <h1 className="text-4xl font-extrabold leading-[1.05]">Three strikes.<br />No proxies.</h1>
-        <p className="muted">Sign in with your college Google account to check in at E-Cell meetings and see where you stand.</p>
+        <p className="muted">Sign in with your SNU mail ID to check in at E-Cell meetings and see where you stand.</p>
       </div>
       <ol className="space-y-2 border-l-2 pl-4 text-sm" style={{ borderColor: "var(--border)" }}>
         <li><strong>Once:</strong> register your phone with your fingerprint or face.</li>
