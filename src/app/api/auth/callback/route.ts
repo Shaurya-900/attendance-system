@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { emailDomainAllowed, safeNext } from "@/lib/auth";
 import { backfillAbsences } from "@/lib/meetings";
+import { joinReservedGroups } from "@/lib/members";
 import { getRepo } from "@/lib/repo";
 import { createSessionClient } from "@/lib/supabase/server";
 
@@ -31,6 +32,7 @@ export async function GET(req: NextRequest) {
     repo.getPasskeyByUser(data.user.id),
     !existing && (async () => {
       await repo.upsertProfile({ id: data.user.id, email, name: roster!.name, rollNo: roster!.rollNo, role: roster!.role, active: true });
+      await joinReservedGroups(repo, data.user.id, email);
       if (roster!.role === "member" && roster!.addedAt) await backfillAbsences(repo, data.user.id, roster!.addedAt);
     })(),
   ]);

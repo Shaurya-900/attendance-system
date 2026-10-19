@@ -5,7 +5,7 @@ import { isGroupActive, standings } from "@/lib/meetings";
 import { getRepo } from "@/lib/repo";
 import { GROUP_KIND_LABEL } from "@/lib/types";
 import { ConfirmForm } from "@/components/confirm-form";
-import { deleteGroup, removeGroupMember, setGroupArchived, setGroupRole } from "../../actions";
+import { deleteGroup, removeGroupMember, removeReservedMember, setGroupArchived, setGroupRole } from "../../actions";
 import { AddMembersForm } from "./add-members-form";
 
 export default async function GroupPage({ params }: { params: Promise<{ id: string }> }) {
@@ -13,13 +13,18 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
   const staff = await requireStaff();
   if (!canManageGroup(staff, id)) redirect("/admin/groups");
   const repo = getRepo();
-  const [group, members, profiles, { semester, byUser }] = await Promise.all([
-    repo.getGroup(id), repo.listGroupMembers(id), repo.listProfiles(), standings(repo),
+  const [group, members, profiles, roster, reserved, { semester, byUser }] = await Promise.all([
+    repo.getGroup(id), repo.listGroupMembers(id), repo.listProfiles(), repo.listRoster(), repo.listRosterGroups({ groupId: id }), standings(repo),
   ]);
   if (!group) notFound();
   const byId = new Map(profiles.map((p) => [p.id, p]));
   const memberIds = new Set(members.map((m) => m.userId));
   const candidates = profiles.filter((p) => p.active && !memberIds.has(p.id)).map((p) => ({ id: p.id, name: p.name, rollNo: p.rollNo }));
+  // People on the roster who haven't signed in yet: they can be given a place now and join on first sign-in.
+  const signedUp = new Set(profiles.map((p) => p.email));
+  const reservedEmails = new Set(reserved.map((r) => r.email));
+  const waiting = roster.filter((r) => reservedEmails.has(r.email) && !signedUp.has(r.email));
+  const notJoined = roster.filter((r) => !signedUp.has(r.email) && !reservedEmails.has(r.email)).map((r) => ({ email: r.email, name: r.name, rollNo: r.rollNo }));
   const rows = members
     .map((m) => ({ m, p: byId.get(m.userId), s: byUser.get(m.userId)?.find((x) => x.group?.id === id)?.summary }))
     .filter((r) => r.p)
@@ -81,13 +86,27 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
                 </td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan={4} className="muted">No members yet.</td></tr>}
+            {waiting.map((r) => (
+              <tr key={r.email}>
+                <td>{r.name} <span className="muted text-xs">{r.rollNo}</span></td>
+                <td className="muted text-xs">Waiting to sign in</td>
+                <td></td>
+                <td>
+                  <form action={removeReservedMember}>
+                    <input type="hidden" name="groupId" value={id} />
+                    <input type="hidden" name="email" value={r.email} />
+                    <button className="btn-ghost py-0.5 text-xs">Remove</button>
+                  </form>
+                </td>
+              </tr>
+            ))}
+            {rows.length + waiting.length === 0 && <tr><td colSpan={4} className="muted">No members yet.</td></tr>}
           </tbody>
         </table>
       </div>
 
-      <AddMembersForm groupId={id} candidates={candidates} />
-      <p className="muted text-xs">Only people who have signed in to the app once can be added. Removing someone keeps their past attendance.</p>
+      <AddMembersForm groupId={id} candidates={candidates} notJoined={notJoined} />
+      <p className="muted text-xs">People who haven&apos;t signed in yet join the group automatically the first time they do. Removing someone keeps their past attendance.</p>
     </div>
   );
 }
