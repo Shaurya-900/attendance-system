@@ -78,6 +78,35 @@ select.input {
   background-position: calc(100% - 1.15rem) 55%, calc(100% - .85rem) 55%;
   background-size: .3rem .3rem; background-repeat: no-repeat;
 }
+/* Disclosures: a summary row you tap to open, with a drawn chevron that turns over. */
+details > summary { list-style: none; cursor: pointer; }
+details > summary::-webkit-details-marker { display: none; }
+.chevron { flex: none; color: var(--muted); transition: transform .2s cubic-bezier(.16, 1, .3, 1); }
+details[open] > summary .chevron { transform: rotate(180deg); }
+.disclosure > summary { display: flex; align-items: center; justify-content: space-between; gap: .75rem; min-height: 2.25rem; }
+
+/* Members: one line per person, details one tap deeper. */
+.member-list { padding: 0; overflow: hidden; }
+.member-list > li + li { border-top: 1px solid var(--border); }
+.member-row > summary {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: .25rem .75rem;
+  min-height: 3rem; padding: .625rem 1rem;
+}
+.member-row > summary:hover { background: color-mix(in oklab, var(--accent-soft) 55%, transparent); }
+.member-row[open] > summary { background: var(--accent-soft); }
+.member-detail { display: grid; gap: 1.25rem; padding: 1rem; border-top: 1px solid var(--border); }
+.danger-zone { display: grid; gap: .5rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+/* On phones the strike holes drop under the name, so names never get squeezed. */
+@media (max-width: 40rem) {
+  .member-row > summary { grid-template-columns: minmax(0, 1fr) auto; }
+  .member-row > summary > :nth-child(2) { grid-column: 1; grid-row: 2; justify-content: flex-start; }
+  .member-row > summary > .chevron { grid-column: 2; grid-row: 1 / span 2; }
+}
+.tag {
+  display: inline-flex; align-items: center; font-size: .75rem; font-weight: 600; line-height: 1.25rem;
+  padding-inline: .375rem; border-radius: .25rem; border: 1px solid color-mix(in oklab, currentColor 35%, transparent);
+}
+
 .input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
 /* Messages are written on the page in ink, not boxed: notes and warnings in blue-black ink, errors in red pen. */

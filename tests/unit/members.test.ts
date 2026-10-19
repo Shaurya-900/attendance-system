@@ -24,7 +24,7 @@ describe("checkMemberChanges", () => {
     expect(await err({ rollNo: "2410110002" })).toBe(true); // Bob's
     expect(await err({ email: "bob@ecell.test" })).toBe(true);
     expect(await err({})).toBe(true);
-    expect(await err({ name: "Core Admin", rollNo: "22010110001", email: "admin@ecell.test", role: "member" }, "admin@ecell.test")).toBe(true);
+    expect(await err({ name: "Core Admin", rollNo: "2210110001", email: "admin@ecell.test", role: "member" }, "admin@ecell.test")).toBe(true);
   });
 });
 
