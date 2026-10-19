@@ -5,9 +5,8 @@ import { THEME_COOKIE, type Theme } from "@/lib/theme";
 
 const NEXT: Record<Theme, Theme> = { system: "light", light: "dark", dark: "system" };
 const LABEL: Record<Theme, string> = { system: "Auto", light: "Light", dark: "Dark" };
-const ICON: Record<Theme, string> = { system: "◐", light: "☀", dark: "☾" };
 
-/** Cycles Auto (follow the device) → Light → Dark. Saved in a cookie so the server renders the right theme with no flash. */
+/** Cycles Auto (follow the device), Light, Dark. Saved in a cookie so the server renders the right theme with no flash. */
 export function ThemeToggle({ initial }: { initial: Theme }) {
   const [theme, setTheme] = useState(initial);
   function cycle() {
@@ -19,7 +18,7 @@ export function ThemeToggle({ initial }: { initial: Theme }) {
   }
   return (
     <button type="button" onClick={cycle} className="btn-ghost" aria-label={`Theme: ${LABEL[theme]}. Switch to ${LABEL[NEXT[theme]]}`} title="Switch theme">
-      <span aria-hidden>{ICON[theme]}</span> {LABEL[theme]}
+      Theme: {LABEL[theme]}
     </button>
   );
 }

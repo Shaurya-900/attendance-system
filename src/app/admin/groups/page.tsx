@@ -9,18 +9,19 @@ import { NewGroupForm } from "./new-group-form";
 export default async function GroupsPage() {
   const staff = await requireStaff();
   const repo = getRepo();
-  const [groups, members] = await Promise.all([repo.listGroups(), repo.listGroupMembers()]);
+  const [groups, members, reserved] = await Promise.all([repo.listGroups(), repo.listGroupMembers(), repo.listRosterGroups()]);
   const visible = groups.filter((g) => canManageGroup(staff, g.id));
   const active = visible.filter((g) => isGroupActive(g));
   const past = visible.filter((g) => !isGroupActive(g));
   const count = (id: string) => members.filter((m) => m.groupId === id).length;
+  const waiting = (id: string) => reserved.filter((r) => r.groupId === id).length;
 
   const list = (gs: typeof groups) => (
     <ul className="divide-y" style={{ borderColor: "var(--border)" }}>
       {gs.map((g) => (
         <li key={g.id} className="flex flex-wrap items-center justify-between gap-x-3 py-1 text-sm">
           <Link className="py-2 font-medium underline" href={`/admin/groups/${g.id}`}>{g.name}</Link>
-          <span className="muted">{kindLabel[g.kind]} · {count(g.id)} members{g.endsOn ? ` · until ${g.endsOn}` : ""}</span>
+          <span className="muted">{kindLabel[g.kind]} · {count(g.id)} members{waiting(g.id) ? ` · ${waiting(g.id)} waiting to sign in` : ""}{g.endsOn ? ` · until ${g.endsOn}` : ""}</span>
         </li>
       ))}
     </ul>

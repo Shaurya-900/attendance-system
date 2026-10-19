@@ -36,6 +36,8 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
         <h1 className="text-2xl font-bold">{group.name}</h1>
         <span className="muted text-sm">
           {GROUP_KIND_LABEL[group.kind]}
+          {` · ${rows.length} member${rows.length === 1 ? "" : "s"}`}
+          {waiting.length ? ` · ${waiting.length} waiting to sign in` : ""}
           {group.endsOn ? ` · until ${group.endsOn}` : ""}
           {!isGroupActive(group) ? " · archived" : ""}
         </span>
