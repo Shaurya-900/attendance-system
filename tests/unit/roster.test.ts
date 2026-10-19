@@ -37,12 +37,12 @@ describe("parseRoster", () => {
       "Name\tRoll No\tSNU ID",
       "Aayush Digikar\t2610110014\tad712@snu.edu.in",
       "pranik reddy manne 2610110353 mr410@snu.edu.in",
-      "Shivansh Kalra 2310110600 sk262@snu.edu.in admin",
+      "SHIVANSH kalra 2310110600 sk262@snu.edu.in admin",
       "Arnav Singh 2610110121 as608@snu.in",
     ].join("\n"), "snu.edu.in");
     expect(entries).toEqual([
       { email: "ad712@snu.edu.in", name: "Aayush Digikar", rollNo: "2610110014", role: "member" },
-      { email: "mr410@snu.edu.in", name: "pranik reddy manne", rollNo: "2610110353", role: "member" },
+      { email: "mr410@snu.edu.in", name: "Pranik Reddy Manne", rollNo: "2610110353", role: "member" },
       { email: "sk262@snu.edu.in", name: "Shivansh Kalra", rollNo: "2310110600", role: "admin" },
     ]);
     expect(rejected).toEqual(["Arnav Singh 2610110121 as608@snu.in"]);
