@@ -1,4 +1,5 @@
-export type Role = "member" | "admin";
+/** Advisors sign in but have no attendance requirement. The role is only set in the database (see README). */
+export type Role = "member" | "admin" | "advisor";
 
 export interface Profile {
   id: string;

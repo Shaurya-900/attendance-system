@@ -164,7 +164,12 @@ export async function setActive(formData: FormData) {
 export async function importRoster(_prev: FormState, formData: FormData): Promise<FormState> {
   const admin = await requireAdmin();
   const repo = getRepo();
-  const { entries, rejected, duplicates } = parseRoster(str(formData, "csv"), env.allowedEmailDomain, await repo.listRoster());
+  const [current, profiles] = await Promise.all([repo.listRoster(), repo.listProfiles()]);
+  const parsed = parseRoster(str(formData, "csv"), env.allowedEmailDomain, current);
+  const { rejected, duplicates } = parsed;
+  // Advisors are only set in the database; re-importing them from a sheet must not turn them into members.
+  const advisors = new Set([...current, ...profiles].filter((p) => p.role === "advisor").map((p) => p.email));
+  const entries = parsed.entries.map((e) => (advisors.has(e.email) ? { ...e, role: "advisor" as const } : e));
   const skipped = [
     rejected.length && `Skipped ${rejected.length} line(s). Each needs a name without numbers, a roll number of 10 digits starting with 2, and an SNU mail ID${env.allowedEmailDomain ? ` ending in @${env.allowedEmailDomain}` : ""}:\n${rejected.join("\n")}`,
     duplicates.length && `Skipped ${duplicates.length} duplicate(s): the SNU mail ID or roll number is repeated in this paste, or the roll number already belongs to someone else on the roster:\n${duplicates.join("\n")}`,
@@ -173,7 +178,7 @@ export async function importRoster(_prev: FormState, formData: FormData): Promis
   await repo.upsertRoster(entries);
   // Keep signed-up members in sync, so e.g. promoting someone to admin takes effect.
   const byEmail = new Map(entries.map((e) => [e.email, e]));
-  await Promise.all((await repo.listProfiles()).flatMap((p) => {
+  await Promise.all(profiles.flatMap((p) => {
     const e = byEmail.get(p.email);
     if (!e || p.id === admin.id || (e.name === p.name && e.rollNo === p.rollNo && e.role === p.role)) return [];
     return [repo.upsertProfile({ ...p, name: e.name, rollNo: e.rollNo, role: e.role })];
@@ -374,7 +379,8 @@ export async function removeReservedMember(formData: FormData) {
 export async function requestMemberEdit(_prev: FormState, formData: FormData): Promise<FormState> {
   const admin = await requireAdmin();
   const targetEmail = str(formData, "targetEmail");
-  const role = str(formData, "role") === "admin" ? "admin" : "member";
+  const parsedRole = z.enum(["member", "admin", "advisor"]).safeParse(str(formData, "role"));
+  const role = parsedRole.success ? parsedRole.data : "member";
   const repo = getRepo();
   const checked = await checkMemberChanges(repo, targetEmail, {
     name: str(formData, "name"), rollNo: str(formData, "rollNo"), email: str(formData, "email"), role,

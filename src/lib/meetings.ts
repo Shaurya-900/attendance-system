@@ -11,11 +11,11 @@ export function isGroupActive(group: Group, now = new Date()): boolean {
   return !group.archived && (!group.endsOn || group.endsOn >= localDate(now.toISOString(), env.timezone));
 }
 
-/** Who is expected at a meeting: all active members for full body, otherwise the group's active members (leads included). */
+/** Who is expected at a meeting: all active members for full body, otherwise the group's active members (leads included). Never advisors. */
 export function expectedFrom(profiles: Profile[], groupMembers: GroupMember[], meeting: Pick<Meeting, "groupId">): Profile[] {
   if (!meeting.groupId) return profiles.filter((p) => p.active && p.role === "member");
   const ids = new Set(groupMembers.filter((m) => m.groupId === meeting.groupId).map((m) => m.userId));
-  return profiles.filter((p) => p.active && ids.has(p.id));
+  return profiles.filter((p) => p.active && p.role !== "advisor" && ids.has(p.id));
 }
 
 export async function expectedMembers(repo: Repo, meeting: Pick<Meeting, "groupId">): Promise<Profile[]> {

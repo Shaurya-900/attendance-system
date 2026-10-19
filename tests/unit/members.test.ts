@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { expectedFrom } from "@/lib/meetings";
 import { applyMemberChanges, checkMemberChanges, detailsAfter, joinReservedGroups } from "@/lib/members";
 import { memoryRepo as repo } from "@/lib/repo/memory";
 
@@ -58,5 +59,23 @@ describe("joinReservedGroups", () => {
     await joinReservedGroups(repo, "user-new", "new@ecell.test");
     expect((await repo.listMembershipsForUser("user-new")).map((m) => [m.groupId, m.role]).sort()).toEqual([["g1", "member"], ["g2", "member"]]);
     expect(await repo.listRosterGroups({ email: "new@ecell.test" })).toEqual([]);
+  });
+});
+
+describe("advisors", () => {
+  it("can't be made or unmade from the app", async () => {
+    const r = await checkMemberChanges(repo, alice.email, { ...alice, role: "advisor" }, opts);
+    expect("error" in r && r.error).toMatch(/database/);
+    await repo.upsertProfile({ ...(await repo.getProfile("user-2"))!, role: "advisor" });
+    const bob = { name: "Bob Member", rollNo: "2410110002", email: "bob@ecell.test" };
+    expect("error" in (await checkMemberChanges(repo, bob.email, { ...bob, role: "member" }, opts))).toBe(true);
+    expect(await checkMemberChanges(repo, bob.email, { ...bob, name: "Bob Advisor", role: "advisor" }, opts)).toEqual({ changes: { name: "Bob Advisor" } });
+  });
+
+  it("are never expected at meetings, even in their groups", async () => {
+    const profiles = (await repo.listProfiles()).map((p) => (p.id === "user-2" ? { ...p, role: "advisor" as const } : p));
+    const members = ["user-1", "user-2"].map((userId) => ({ groupId: "g1", userId, role: "member" as const, addedAt: "" }));
+    expect(expectedFrom(profiles, members, { groupId: "g1" }).map((p) => p.id)).toEqual(["user-1"]);
+    expect(expectedFrom(profiles, [], { groupId: null }).map((p) => p.id)).toEqual(["user-1", "user-3"]);
   });
 });
