@@ -149,7 +149,7 @@ export function semesterRange(s: Semester): [string, string] {
  * Full body and every group keep separate counts; `byUser` maps each profile to the full-body
  * scope first, followed by one scope per group they belong to.
  */
-export async function standings(repo: Repo): Promise<{ semester: Semester | null; byUser: Map<string, ScopeStanding[]> }> {
+export async function standings(repo: Repo): Promise<{ semester: Semester | null; byUser: Map<string, ScopeStanding[]>; meetings: Meeting[]; attendance: Attendance[] }> {
   const semestersP = repo.listSemesters();
   // Only the current semester's records count, so don't load older ones.
   const attendanceP = semestersP.then((all) => {
@@ -169,6 +169,8 @@ export async function standings(repo: Repo): Promise<{ semester: Semester | null
   const mem = groupBy(memberships, (m) => m.userId);
   return {
     semester,
+    // The records the counts were made from, for showing which meetings someone missed.
+    meetings, attendance,
     byUser: new Map(profiles.map((p) => [p.id, scopesFor(p.id, {
       meetings, semesters, groups, attendance: att.get(p.id) ?? [], adjustments: adj.get(p.id) ?? [], memberships: mem.get(p.id) ?? [],
     }, semester, byMeeting, groupById)])),

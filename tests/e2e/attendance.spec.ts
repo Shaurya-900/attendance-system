@@ -226,13 +226,16 @@ test("admin can delete a group and a member", async ({ browser, baseURL }) => {
   await admin.locator("textarea[name=csv]").fill("temp@ecell.test,Temp Person,2410110999");
   await admin.getByRole("button", { name: "Import" }).click();
   await expect(admin.getByText("temp@ecell.test")).toBeVisible();
-  await admin.getByRole("article", { name: "Temp Person" }).locator("summary").click();
-  await admin.getByRole("button", { name: "Remove" }).click();
+  const temp = admin.getByRole("article", { name: "Temp Person" });
+  await temp.locator("summary").click();
+  await temp.getByRole("button", { name: "More" }).click();
+  await temp.getByRole("button", { name: "Remove" }).click();
   await expect(admin.getByText("temp@ecell.test")).toHaveCount(0);
 
   // Each member is one line; their actions open underneath.
   const bob = admin.getByRole("article", { name: "Bob Member" });
   await bob.locator("summary").click();
+  await bob.getByRole("button", { name: "More" }).click();
   await bob.getByRole("button", { name: "Delete" }).click();
   await expect(admin.getByRole("article", { name: "Bob Member" })).toHaveCount(0);
   await expect(admin.getByRole("article", { name: "Core Admin" }).getByRole("button", { name: "Delete" })).toHaveCount(0);
