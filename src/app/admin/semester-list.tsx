@@ -23,7 +23,7 @@ export function SemesterList({ semesters }: { semesters: Semester[] }) {
     <ul className="space-y-1 text-sm">
       {shown.map((s) => (
         <li key={s.id} className="flex items-center justify-between gap-2">
-          <span>{s.name}: {s.startsOn} → {s.endsOn}</span>
+          <span>{s.name}: {s.startsOn} to {s.endsOn}</span>
           <button type="button" onClick={() => remove(s)} className="btn-ghost py-0.5 text-xs" aria-label={`Delete semester ${s.name}`}>Delete</button>
         </li>
       ))}

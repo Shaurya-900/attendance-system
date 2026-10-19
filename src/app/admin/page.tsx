@@ -33,7 +33,7 @@ export default async function AdminDashboard() {
       <h1 className="text-2xl font-bold">Dashboard</h1>
       {live.map((m) => (
         <Link key={m.id} href={`/admin/meetings/${m.id}/live`} className="card block border-l-4" style={{ borderLeftColor: "var(--accent)" }}>
-          <strong>Live now:</strong> {m.title}. Open projector view →
+          <strong>Live now:</strong> {m.title}. Open projector view
         </Link>
       ))}
       <div className="grid gap-4 md:grid-cols-2">

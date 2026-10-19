@@ -200,7 +200,7 @@ export async function createSemester(_prev: FormState, formData: FormData): Prom
   if (input.endsOn < input.startsOn) return { error: "The end date is before the start date." };
   const repo = getRepo();
   const overlap = (await repo.listSemesters()).find((s) => s.startsOn <= input.endsOn && input.startsOn <= s.endsOn);
-  if (overlap) return { error: `Overlaps with "${overlap.name}" (${overlap.startsOn} → ${overlap.endsOn}). Delete or adjust that one first.` };
+  if (overlap) return { error: `Overlaps with "${overlap.name}" (${overlap.startsOn} to ${overlap.endsOn}). Delete or adjust that one first.` };
   await repo.createSemester(input);
   await repo.addAudit({ actorId: admin.id, action: "semester.create", target: null, details: input });
   refreshAll();
