@@ -47,4 +47,23 @@ describe("parseRoster", () => {
     ]);
     expect(rejected).toEqual(["Arnav Singh 2610110121 as608@snu.in"]);
   });
+
+  it("skips repeated emails and roll numbers, and roll numbers owned by someone else", () => {
+    const { entries, duplicates } = parseRoster([
+      "Asha Rao 2610110014 asha@snu.edu.in",
+      "Asha Again 2610110099 ASHA@snu.edu.in",
+      "Same Roll 2610110014 other@snu.edu.in",
+      "Taken Roll 2610110050 new@snu.edu.in",
+      "Old Member 2610110060 old@snu.edu.in",
+    ].join("\n"), "snu.edu.in", [
+      { email: "owner@snu.edu.in", rollNo: "2610110050" },
+      { email: "old@snu.edu.in", rollNo: "2610110060" },
+    ]);
+    expect(entries.map((e) => e.email)).toEqual(["asha@snu.edu.in", "old@snu.edu.in"]);
+    expect(duplicates).toEqual([
+      "Asha Again 2610110099 ASHA@snu.edu.in",
+      "Same Roll 2610110014 other@snu.edu.in",
+      "Taken Roll 2610110050 new@snu.edu.in",
+    ]);
+  });
 });

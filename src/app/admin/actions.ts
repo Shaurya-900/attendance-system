@@ -155,12 +155,13 @@ export async function setActive(formData: FormData) {
 /** Roster lines (see parseRoster); a header row is optional. Valid lines are imported; bad ones are reported. */
 export async function importRoster(_prev: FormState, formData: FormData): Promise<FormState> {
   const admin = await requireAdmin();
-  const { entries, rejected } = parseRoster(str(formData, "csv"), env.allowedEmailDomain);
-  const skipped = rejected.length
-    ? `Skipped ${rejected.length} line(s). Each needs a name without numbers, a roll number of 10 digits starting with 2, and an SNU mail ID${env.allowedEmailDomain ? ` ending in @${env.allowedEmailDomain}` : ""}:\n${rejected.join("\n")}`
-    : "";
-  if (entries.length === 0) return { error: skipped || "Paste at least one line." };
   const repo = getRepo();
+  const { entries, rejected, duplicates } = parseRoster(str(formData, "csv"), env.allowedEmailDomain, await repo.listRoster());
+  const skipped = [
+    rejected.length && `Skipped ${rejected.length} line(s). Each needs a name without numbers, a roll number of 10 digits starting with 2, and an SNU mail ID${env.allowedEmailDomain ? ` ending in @${env.allowedEmailDomain}` : ""}:\n${rejected.join("\n")}`,
+    duplicates.length && `Skipped ${duplicates.length} duplicate(s): the SNU mail ID or roll number is repeated in this paste, or the roll number already belongs to someone else on the roster:\n${duplicates.join("\n")}`,
+  ].filter(Boolean).join("\n\n");
+  if (entries.length === 0) return { error: skipped || "Paste at least one line." };
   await repo.upsertRoster(entries);
   // Keep signed-up members in sync, so e.g. promoting someone to admin takes effect.
   const byEmail = new Map(entries.map((e) => [e.email, e]));
