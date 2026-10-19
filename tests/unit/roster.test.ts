@@ -25,4 +25,13 @@ describe("parseRoster", () => {
       "not-an-email,Someone,24010110105",
     ]);
   });
+
+  it("reads rows pasted from Excel as name, roll no, SNU ID", () => {
+    const { entries, rejected } = parseRoster("Name\tRoll No\tSNU ID\nAsha Rao\t24010110104\tAsha@snu.edu.in\nCore Lead\t23010110001\tlead@snu.edu.in\tAdmin\nNo Email\t24010110105\tnoemail");
+    expect(entries).toEqual([
+      { email: "asha@snu.edu.in", name: "Asha Rao", rollNo: "24010110104", role: "member" },
+      { email: "lead@snu.edu.in", name: "Core Lead", rollNo: "23010110001", role: "admin" },
+    ]);
+    expect(rejected).toEqual(["No Email\t24010110105\tnoemail"]);
+  });
 });
