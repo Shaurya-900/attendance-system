@@ -31,7 +31,7 @@ export default async function GroupsPage() {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold">Groups</h1>
       <p className="muted text-sm">
-        Groups hold their own meetings and keep their own 3-strike count, separate from full-body meetings.
+        Groups hold their own meetings. Absences there add to the same 3-strike count as full-body meetings.
         Leads can run their group&apos;s meetings and manage its members.
       </p>
       {staff.isAdmin && <NewGroupForm />}

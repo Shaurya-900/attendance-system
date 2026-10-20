@@ -26,7 +26,7 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
   const waiting = roster.filter((r) => reservedEmails.has(r.email) && !signedUp.has(r.email));
   const notJoined = roster.filter((r) => !signedUp.has(r.email) && !reservedEmails.has(r.email)).map((r) => ({ email: r.email, name: r.name, rollNo: r.rollNo }));
   const rows = members
-    .map((m) => ({ m, p: byId.get(m.userId), s: byUser.get(m.userId)?.find((x) => x.group?.id === id)?.summary }))
+    .map((m) => ({ m, p: byId.get(m.userId), s: byUser.get(m.userId)?.[0]?.summary }))
     .filter((r) => r.p)
     .sort((a, b) => (a.m.role === b.m.role ? a.p!.name.localeCompare(b.p!.name) : a.m.role === "lead" ? -1 : 1));
 
@@ -60,7 +60,7 @@ export default async function GroupPage({ params }: { params: Promise<{ id: stri
 
       <div className="card overflow-x-auto">
         <table className="data">
-          <thead><tr><th>Member</th><th>Role</th><th>Group strikes {semester && <span className="font-normal">({semester.name})</span>}</th><th></th></tr></thead>
+          <thead><tr><th>Member</th><th>Role</th><th>Strikes {semester && <span className="font-normal">({semester.name})</span>}</th><th></th></tr></thead>
           <tbody>
             {rows.map(({ m, p, s }) => (
               <tr key={m.userId}>

@@ -44,9 +44,8 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
   const isApprover = !!admin.approver;
   const anyApprover = profiles.some((p) => p.role === "admin" && p.approver);
 
-  // Each member's counts: full body only for members (admins and advisors aren't tracked there), never for advisors.
-  const scopesOf = (p: Profile): ScopeStanding[] =>
-    p.role === "advisor" ? [] : (byUser.get(p.id) ?? []).filter((s) => s.group || p.role === "member");
+  // Everyone shares one count across all meetings, except advisors, who have no attendance requirement.
+  const scopesOf = (p: Profile): ScopeStanding[] => (p.role === "advisor" ? [] : byUser.get(p.id) ?? []);
   const rankOf = (p: Profile) => Math.max(0, ...scopesOf(p).map((s) => RANK[s.summary.level]));
 
   // Search and filters come from the URL, so a filtered list can be bookmarked or shared.
@@ -72,14 +71,11 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
   const flagged = profiles.filter((p) => rankOf(p) === RANK.flagged).length;
   const noPhone = profiles.filter((p) => p.active && !hasPasskey.has(p.id)).length;
 
-  /** The meetings a member was marked absent at this semester, in the counts that are tracked for them. */
-  const missedFor = (p: Profile) => {
-    const counted = new Set(scopesOf(p).map((s) => s.group?.id ?? ""));
-    return attendance
-      .filter((a) => a.userId === p.id && a.status === "absent")
-      .flatMap((a) => { const m = meetingById.get(a.meetingId); return m && counted.has(m.groupId ?? "") ? [m] : []; })
-      .sort((a, b) => b.startsAt.localeCompare(a.startsAt));
-  };
+  /** The meetings a member was marked absent at this semester. */
+  const missedFor = (p: Profile) => attendance
+    .filter((a) => a.userId === p.id && a.status === "absent")
+    .flatMap((a) => { const m = meetingById.get(a.meetingId); return m ? [m] : []; })
+    .sort((a, b) => b.startsAt.localeCompare(a.startsAt));
   const groupName = new Map(groups.map((g) => [g.id, g.name]));
 
   return (
@@ -191,7 +187,7 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
                             <div className="space-y-1">
                               <h3 className="text-sm font-semibold">Standing{semester && <span className="muted font-normal"> · {semester.name}</span>}</h3>
                               <p className="muted break-all text-xs">{p.email}</p>
-                              {scopes.length === 0 && <p className="muted text-xs">{p.role === "advisor" ? "Advisor, no attendance requirement." : "Admin, not tracked for full body. Not in any group yet."}</p>}
+                              {scopes.length === 0 && <p className="muted text-xs">Advisor, no attendance requirement.</p>}
                               <div className="flex flex-wrap gap-x-4 gap-y-1">
                                 {scopes.map((s) => (
                                   <div key={s.group?.id ?? "all"} className="flex items-center gap-1 text-xs">
@@ -219,8 +215,7 @@ export default async function MembersPage({ searchParams }: { searchParams: Prom
                           } : undefined}
                           sections={[
                             ...(scopes.length > 0 ? [{ key: "strikes", label: "Adjust strikes", node: (
-                              <StrikeForm userId={p.id} name={p.name} semesterId={semester?.id ?? ""}
-                                scopes={scopes.map((s) => ({ value: s.group?.id ?? "", label: scopeLabel(s) }))} />
+                              <StrikeForm userId={p.id} name={p.name} semesterId={semester?.id ?? ""} />
                             ) }] : []),
                             { key: "details", label: "Edit details", node: (
                               <div className="space-y-3">

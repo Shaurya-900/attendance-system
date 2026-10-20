@@ -20,7 +20,7 @@ export default async function MePage() {
   const advisor = user.role === "advisor";
   const meetings = allMeetings.filter((m) =>
     recordFor.has(m.id) || (!advisor && (m.groupId ? myGroups.has(m.groupId) : user.role === "member")));
-  const scopes = advisor ? [] : allScopes.filter((s) => s.group || user.role === "member");
+  const scopes = advisor ? [] : allScopes;
   const now = Date.now();
   const excusable = meetings.filter((m) => {
     const r = recordFor.get(m.id);
@@ -61,7 +61,7 @@ export default async function MePage() {
       </div>
       <p className="muted text-xs">
         {semester ? `Semester: ${semester.name}. ` : "No semester configured, so all meetings count. "}
-        Full body and each of your groups keep separate counts. An absence is 1 point; late check-ins and approved excuses are 0.
+        Full-body and group meetings share one count. An absence is 1 point; late check-ins and approved excuses are 0.
         Warning at {WARNING_AT}, review at {FLAGGED_AT}.
       </p>
 

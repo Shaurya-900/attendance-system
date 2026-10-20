@@ -37,7 +37,7 @@ Admins (and a group's leads, for its meetings) can delete a meeting created by m
 Besides full-body meetings, admins can create as many **groups** as needed under **Admin → Groups**: teams (Marketing, Tech, Design, …), the core team, a leads group (sub-core), or temporary event teams with an end date.
 
 - A meeting can be for **Full body** or for one group. Only that group's members are expected, can check in, or get marked absent.
-- **Each group keeps its own 3-strike count**, separate from full body. A member sees one card per count on *My attendance*.
+- **One shared 3-strike count** across full-body and group meetings. A member sees it on *My attendance*.
 - Admins can make any group member a **lead**. Leads can create, run and close their group's meetings, add or remove members, review excuses for their meetings and export them. They can't touch full-body meetings or other groups.
 - Event teams stop appearing in the "new meeting" list after their end date, and admins can archive any group. History and strikes are kept.
 - People must have signed in to the app once before they can be added to a group.
