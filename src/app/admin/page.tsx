@@ -18,11 +18,11 @@ export default async function AdminDashboard() {
   const joined = new Set(profiles.map((p) => p.email));
   const notJoined = roster.filter((r) => r.role === "member" && !joined.has(r.email));
   const names = new Map(profiles.map((p) => [p.id, p.name]));
-  // One row per member per strike count (full body or a group) that is at warning or worse.
+  // Members whose shared strike count is at warning or worse. Advisors have no attendance requirement.
   const atRisk = profiles
     .filter((p) => p.active)
     .flatMap((p) => (byUser.get(p.id) ?? [])
-      .filter((s) => s.summary.level !== "ok" && (s.group || p.role === "member"))
+      .filter((s) => s.summary.level !== "ok" && p.role !== "advisor")
       .map((s) => ({ p, s })))
     .sort((a, b) => b.s.summary.points - a.s.summary.points);
   const proxyEvents = audit.filter((a) => a.action.startsWith("proxy.")).slice(0, 10);

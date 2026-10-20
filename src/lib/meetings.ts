@@ -83,25 +83,16 @@ function withStart(records: Attendance[], meetings: Map<string, Meeting>) {
 }
 
 export interface ScopeStanding {
-  /** null = full body */
+  /** Always null: every meeting, full body or group, adds to one shared count. */
   group: Group | null;
   summary: StrikeSummary;
 }
 
-export const scopeLabel = (s: ScopeStanding) => s.group?.name ?? "Full body";
+export const scopeLabel = (s: ScopeStanding) => s.group?.name ?? "All meetings";
 
 /** The scope with the most strike points: what admins should look at first. */
 export function worstScope(scopes: ScopeStanding[]): ScopeStanding {
   return scopes.reduce((a, b) => (b.summary.points > a.summary.points ? b : a));
-}
-
-interface StandingData {
-  meetings: Meeting[];
-  attendance: Attendance[];
-  adjustments: StrikeAdjustment[];
-  semesters: Semester[];
-  groups: Group[];
-  memberships: GroupMember[];
 }
 
 function groupBy<T>(items: T[], key: (t: T) => string): Map<string, T[]> {
@@ -114,22 +105,9 @@ function groupBy<T>(items: T[], key: (t: T) => string): Map<string, T[]> {
   return out;
 }
 
-/** `d` holds one member's attendance, adjustments and memberships (or more; they are filtered by userId). */
-function scopesFor(userId: string, d: StandingData, semester: Semester | null, byMeeting: Map<string, Meeting>, groupById: Map<string, Group>): ScopeStanding[] {
-  const attendance = d.attendance.filter((a) => a.userId === userId);
-  const adjustments = d.adjustments.filter((a) => a.userId === userId);
-  const summarize = (groupId: string | null) => computeStrikes(
-    withStart(attendance.filter((a) => (byMeeting.get(a.meetingId)?.groupId ?? null) === groupId), byMeeting),
-    adjustments.filter((a) => (a.groupId ?? null) === groupId),
-    semester,
-    env.timezone,
-  );
-  const scopes: ScopeStanding[] = [{ group: null, summary: summarize(null) }];
-  for (const m of d.memberships.filter((x) => x.userId === userId)) {
-    const group = groupById.get(m.groupId);
-    if (group) scopes.push({ group, summary: summarize(group.id) });
-  }
-  return scopes;
+/** One shared count over all of a member's meetings and adjustments (older group-tagged adjustments included). */
+function scopesFor(attendance: Attendance[], adjustments: StrikeAdjustment[], semester: Semester | null, byMeeting: Map<string, Meeting>): ScopeStanding[] {
+  return [{ group: null, summary: computeStrikes(withStart(attendance, byMeeting), adjustments, semester, env.timezone) }];
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -146,8 +124,7 @@ export function semesterRange(s: Semester): [string, string] {
 
 /**
  * Strike standings in the current semester (or all time when none is configured).
- * Full body and every group keep separate counts; `byUser` maps each profile to the full-body
- * scope first, followed by one scope per group they belong to.
+ * `byUser` maps each profile to its one shared count across full-body and group meetings.
  */
 export async function standings(repo: Repo): Promise<{ semester: Semester | null; byUser: Map<string, ScopeStanding[]>; meetings: Meeting[]; attendance: Attendance[] }> {
   const semestersP = repo.listSemesters();
@@ -156,24 +133,19 @@ export async function standings(repo: Repo): Promise<{ semester: Semester | null
     const s = currentSemester(all, env.timezone);
     return s ? repo.listAttendanceBetween(...semesterRange(s)) : repo.listAllAttendance();
   });
-  const [meetings, attendance, adjustments, semesters, profiles, groups, memberships] = await Promise.all([
+  const [meetings, attendance, adjustments, semesters, profiles] = await Promise.all([
     repo.listMeetings(), attendanceP, repo.listAdjustments(), semestersP, repo.listProfiles(),
-    repo.listGroups(), repo.listGroupMembers(),
   ]);
   const semester = currentSemester(semesters, env.timezone);
   const byMeeting = new Map(meetings.map((m) => [m.id, m]));
-  const groupById = new Map(groups.map((g) => [g.id, g]));
   // Split the records by member once, instead of scanning every record for every member.
   const att = groupBy(attendance, (a) => a.userId);
   const adj = groupBy(adjustments, (a) => a.userId);
-  const mem = groupBy(memberships, (m) => m.userId);
   return {
     semester,
     // The records the counts were made from, for showing which meetings someone missed.
     meetings, attendance,
-    byUser: new Map(profiles.map((p) => [p.id, scopesFor(p.id, {
-      meetings, semesters, groups, attendance: att.get(p.id) ?? [], adjustments: adj.get(p.id) ?? [], memberships: mem.get(p.id) ?? [],
-    }, semester, byMeeting, groupById)])),
+    byUser: new Map(profiles.map((p) => [p.id, scopesFor(att.get(p.id) ?? [], adj.get(p.id) ?? [], semester, byMeeting)])),
   };
 }
 
@@ -184,7 +156,6 @@ export async function standingsForUser(repo: Repo, userId: string): Promise<{ se
     repo.listGroups(), repo.listMembershipsForUser(userId),
   ]);
   const semester = currentSemester(semesters, env.timezone);
-  const scopes = scopesFor(userId, { meetings, attendance, adjustments, semesters, groups, memberships: mine }, semester,
-    new Map(meetings.map((m) => [m.id, m])), new Map(groups.map((g) => [g.id, g])));
+  const scopes = scopesFor(attendance, adjustments, semester, new Map(meetings.map((m) => [m.id, m])));
   return { semester, scopes, meetings, attendance, groups, memberships: mine };
 }

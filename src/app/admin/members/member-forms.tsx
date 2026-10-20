@@ -115,12 +115,11 @@ export function MemberPanel({ name, standing, review, sections, more }: {
   );
 }
 
-/** Add or remove strike points, in one of the member's counts (full body or a group). */
-export function StrikeForm({ userId, name, semesterId, scopes }: {
+/** Add or remove strike points in the member's shared count. */
+export function StrikeForm({ userId, name, semesterId }: {
   userId: string;
   name: string;
   semesterId: string;
-  scopes: { value: string; label: string }[];
 }) {
   const [state, run, pending] = useActionState(adjustStrikes, null);
   // React clears a form after each submit. An error sends back what was typed, and the form is
@@ -130,13 +129,7 @@ export function StrikeForm({ userId, name, semesterId, scopes }: {
     <form key={JSON.stringify(typed)} action={run} className="space-y-2">
       <input type="hidden" name="userId" value={userId} />
       <input type="hidden" name="semesterId" value={semesterId} />
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-[auto_7rem_1fr]">
-        <label className="col-span-2 space-y-1 sm:col-span-1">
-          <span className="muted block text-xs">Count</span>
-          <select name="groupId" className="input text-sm" defaultValue={typed.groupId}>
-            {scopes.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-          </select>
-        </label>
+      <div className="grid grid-cols-[7rem_1fr] gap-2">
         <label className="space-y-1">
           <span className="muted block text-xs">Points (− to remove)</span>
           <input name="points" type="number" step="0.5" min={-10} max={10} required placeholder="-1" className="input text-sm tabular-nums" defaultValue={typed.points} />

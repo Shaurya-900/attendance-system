@@ -136,15 +136,14 @@ export async function adjustStrikes(_prev: FormState, formData: FormData): Promi
   const userId = str(formData, "userId");
   const parsedPoints = z.coerce.number().min(-10).max(10).multipleOf(0.5).refine((n) => n !== 0).safeParse(str(formData, "points"));
   const reason = str(formData, "reason");
-  const values = { points: str(formData, "points"), reason, groupId: str(formData, "groupId") };
+  const values = { points: str(formData, "points"), reason };
   if (!parsedPoints.success) return { error: "Points must be between -10 and 10 in steps of 0.5, and not 0. Use a minus sign to remove strikes.", values };
   if (!reason) return { error: "Add a reason, so others can see why the count changed.", values };
   const points = parsedPoints.data;
   const semesterId = str(formData, "semesterId") || null;
-  const groupId = str(formData, "groupId") || null;
   const repo = getRepo();
-  await repo.addAdjustment({ userId, semesterId, groupId, points, reason, createdBy: admin.id });
-  await repo.addAudit({ actorId: admin.id, action: "strikes.adjust", target: userId, details: { points, reason, semesterId, groupId } });
+  await repo.addAdjustment({ userId, semesterId, groupId: null, points, reason, createdBy: admin.id });
+  await repo.addAudit({ actorId: admin.id, action: "strikes.adjust", target: userId, details: { points, reason, semesterId } });
   refreshAll();
   return { ok: `${points > 0 ? "Added" : "Removed"} ${Math.abs(points)} ${Math.abs(points) === 1 ? "point" : "points"}.` };
 }

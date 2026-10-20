@@ -20,7 +20,7 @@ Proxy-proof attendance for E-Cell meetings with a 3-strike rule. It replaces pap
 
 ## Positioning
 
-Check-in is bound to the member's own phone (passkey plus biometrics) and to a QR code that changes every 10 seconds, so sharing a photo, a link or a login doesn't work. Strikes are counted per group and per semester, separate from full-body meetings.
+Check-in is bound to the member's own phone (passkey plus biometrics) and to a QR code that changes every 10 seconds, so sharing a photo, a link or a login doesn't work. Strikes are counted per semester, in one shared count across full-body and group meetings.
 
 ## Operating Context
 
@@ -33,7 +33,7 @@ Check-in is bound to the member's own phone (passkey plus biometrics) and to a Q
   - Core: the core team, for core-only meetings.
   - Leads: core and sub-core together, for leads meetings. Core members sit in both Core and Leads.
   - Event teams: temporary, with an end date, archived afterwards.
-  - Full-body meetings are for every member. Each group keeps its own 3-strike count.
+  - Full-body meetings are for every member. All meetings share one 3-strike count.
 - People can be added to teams before they first sign in; they join automatically when they do.
 - Semesters are set by admins; points reset each semester.
 - Before launch, the core members are trying the app and rating it.
@@ -66,7 +66,7 @@ Check-in is bound to the member's own phone (passkey plus biometrics) and to a Q
 
 1. Check-in must be faster than a roll call: one scan, one fingerprint.
 2. Make proxying impossible rather than punishable.
-3. Members should always see their own standing, per group, without asking anyone.
+3. Members should always see their own standing without asking anyone.
 4. Leads run their own meetings without needing a core admin.
 5. Every override is visible: adjustments, resets, member edits and proxy attempts are logged, and edits to members need a second person.
 

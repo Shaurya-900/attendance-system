@@ -27,15 +27,15 @@ describe("group meetings", () => {
     expect(rows.some((r) => r.userId === carol.id)).toBe(false);
   });
 
-  it("keep a separate strike count from full body", async () => {
+  it("add to the one shared strike count", async () => {
     const { bob, leads } = await setup();
     const m = await repo.createMeeting({ title: "Leads 2", startsAt: new Date().toISOString(), graceMinutes: 10, groupId: leads.id, createdBy: "user-0" });
     const before = (await standings(repo)).byUser.get(bob.id)!;
-    const fullBefore = before.find((s) => !s.group)!.summary.points;
+    expect(before).toHaveLength(1);
     await closeMeeting(repo, m.id, "user-0");
     const after = (await standings(repo)).byUser.get(bob.id)!;
-    expect(after.find((s) => !s.group)!.summary.points).toBe(fullBefore);
-    expect(after.find((s) => s.group?.id === leads.id)!.summary.points).toBe(1);
+    expect(after).toHaveLength(1);
+    expect(after[0].summary.points).toBe(before[0].summary.points + 1);
   });
 
   it("let leads manage only their own group", async () => {
