@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { EXCUSE_WINDOW_MS, scopeLabel, standingsForUser } from "@/lib/meetings";
 import { getRepo } from "@/lib/repo";
 import { FLAGGED_AT, WARNING_AT } from "@/lib/strikes";
+import { ScanAgain } from "../checkin/scan-again";
 import { ExcuseForm } from "./excuse-form";
 
 export default async function MePage() {
@@ -30,6 +31,12 @@ export default async function MePage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">My attendance</h1>
+
+      {/* Scanning here keeps check-in in this browser, where the passkey lives; the camera app may open another. */}
+      <section className="space-y-2">
+        <ScanAgain label="Scan QR to check in" />
+        <p className="muted text-xs">At a meeting, tap this and point it at the code on the screen.</p>
+      </section>
 
       {scopes.map((s) => s.summary.level !== "ok" && (
         <p key={`warn-${s.group?.id ?? "all"}`} role="alert" className={`alert ${s.summary.level === "flagged" ? "alert-error" : "alert-warn"}`}>
