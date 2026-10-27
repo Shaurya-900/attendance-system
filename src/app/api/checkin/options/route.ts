@@ -21,15 +21,7 @@ export async function POST(req: NextRequest) {
   const meeting = await repo.getMeeting(meetingId);
   if (!meeting || meeting.status !== "live") return NextResponse.json({ error: "Check-in for this meeting has closed.", next: "me" }, { status: 400 });
   // Everyone scans at once at the start of a meeting, so keep this to one parallel round of small queries.
-  const [memberships, existing, passkey] = await Promise.all([
-    meeting.groupId ? repo.listMembershipsForUser(user.id) : [],
-    repo.getAttendance(meeting.id, user.id),
-    repo.getPasskeyByUser(user.id),
-  ]);
-  if (meeting.groupId && !memberships.some((m) => m.groupId === meeting.groupId)) {
-    const group = await repo.getGroup(meeting.groupId);
-    return NextResponse.json({ error: `This meeting is only for ${group?.name ?? "a specific group"}.`, next: "me" }, { status: 403 });
-  }
+  const [existing, passkey] = await Promise.all([repo.getAttendance(meeting.id, user.id), repo.getPasskeyByUser(user.id)]);
   // An absence or excuse doesn't count as checked in: the member can still check in and replace it.
   if (existing && (existing.status === "present" || existing.status === "late")) return NextResponse.json({ alreadyCheckedIn: true, status: existing.status });
   if (!passkey) return NextResponse.json({ error: "Register your phone first.", next: "onboard" }, { status: 400 });

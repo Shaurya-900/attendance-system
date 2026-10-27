@@ -105,11 +105,9 @@ export default async function CheckInPage({ searchParams }: { searchParams: Prom
       </Notice>
     );
   }
+  // Anyone who scans a live group code is welcome: checking in adds them to the group.
   const [memberships, group] = meeting.groupId ? await Promise.all([repo.listMembershipsForUser(user.id), repo.getGroup(meeting.groupId)]) : [[], null];
-  if (meeting.groupId && !memberships.some((g) => g.groupId === meeting.groupId)) {
-    const groupName = group?.name ?? "one group";
-    return <Notice title={`This one's for ${groupName}`}>{meeting.title} is only for {groupName} members, so there&apos;s nothing to check in to.</Notice>;
-  }
+  const joinsGroup = !!meeting.groupId && user.role !== "advisor" && !memberships.some((g) => g.groupId === meeting.groupId);
   if (scannedAt === null) {
     return (
       <Notice title="That code has moved on" action={<><ScanAgain /><Link href="/me" className="btn-ghost btn-tall w-full">Go to my attendance</Link></>}>
@@ -131,6 +129,7 @@ export default async function CheckInPage({ searchParams }: { searchParams: Prom
       </div>
       {late && <p className="alert">You&apos;re past the start, so this counts as late. Late doesn&apos;t add a strike.</p>}
       {existing && <p className="alert">You&apos;re down as {existing.status} for this one. Checking in now replaces that.</p>}
+      {joinsGroup && <p className="alert">You&apos;re not in {group?.name ?? "this group"} yet. Checking in adds you to it.</p>}
       {otherBrowser && (
         <p className="alert alert-warn">
           This looks like a different browser from the one you registered in. If you see &quot;No available sign-in&quot;, open

@@ -81,7 +81,7 @@ test("proxy-proof check-in flow", async ({ browser, baseURL }) => {
   await expect(admin.getByText("register shared device")).toBeVisible();
 });
 
-test("group meetings only admit group members and keep their own strikes", async ({ browser, baseURL }) => {
+test("scanning a group code adds newcomers to the group, and group meetings keep their own strikes", async ({ browser, baseURL }) => {
   const admin = await asAdmin(await browser.newContext(), baseURL!);
 
   // Admin creates a Leads group with Alice in it.
@@ -91,7 +91,7 @@ test("group meetings only admit group members and keep their own strikes", async
   await admin.getByRole("button", { name: "Create" }).click();
   await expect(admin.getByRole("heading", { name: "Leads" })).toBeVisible();
   await admin.getByLabel(/Alice Member/).check();
-  await admin.getByRole("button", { name: "Add to group" }).click();
+  await admin.getByRole("button", { name: /^Add( \d+)? to group$/ }).click();
   await expect(admin.getByRole("status")).toContainText("Added 1 member");
 
   // Leads meeting.
@@ -106,7 +106,7 @@ test("group meetings only admit group members and keep their own strikes", async
   await expect(qr).toBeVisible();
   await expect(admin.getByTestId("live-count")).toHaveText("0 / 1");
 
-  // Carol (not in Leads) registers her own phone, then is refused.
+  // Carol (not in Leads) registers her own phone, scans the code and is added to Leads and marked present.
   const carolPhone = await (await browser.newContext()).newPage();
   await addFingerprint(carolPhone);
   await devLogin(carolPhone, "Carol");
@@ -114,16 +114,17 @@ test("group meetings only admit group members and keep their own strikes", async
   await expect(carolPhone).toHaveURL(/\/me/);
   const freshQr = new URL((await qr.getAttribute("data-qr-url"))!);
   await carolPhone.goto(freshQr.pathname + freshQr.search);
-  await expect(carolPhone.getByText("only for Leads")).toBeVisible();
-  await expect(carolPhone.getByRole("button", { name: "Check in" })).toHaveCount(0);
+  await expect(carolPhone.getByText("Checking in adds you to it")).toBeVisible();
+  await carolPhone.getByRole("button", { name: "Check in" }).click();
+  await expect(carolPhone.getByRole("status")).toContainText("You're checked in at");
 
-  // Closing marks only Alice (the one group member) absent, under the Leads count.
+  // Closing marks only Alice (the one original member) absent; Carol is now in the group and present.
   await admin.getByRole("link", { name: "Manage meeting" }).click();
   await admin.getByRole("button", { name: /Close meeting/ }).click();
   await expect(admin.getByRole("row", { name: /Alice Member/ })).toContainText("absent");
-  await expect(admin.getByRole("row", { name: /Carol Member/ })).toHaveCount(0);
+  await expect(admin.getByRole("row", { name: /Carol Member/ })).toContainText("present");
   await admin.goto("/admin/members");
-  await expect(admin.getByRole("article", { name: "Alice Member" })).toContainText("Leads:");
+  await expect(admin.getByRole("article", { name: "Alice Member" })).toContainText("All meetings: 1 pts");
 });
 
 test("semesters: overlap is refused, delete removes the row immediately", async ({ browser, baseURL }) => {
@@ -248,7 +249,7 @@ test("a member can be removed from a group", async ({ browser, baseURL }) => {
   await admin.getByRole("button", { name: "Create" }).click();
   await expect(admin.getByRole("heading", { name: "Removal team" })).toBeVisible();
   await admin.getByLabel(/Carol Member/).check();
-  await admin.getByRole("button", { name: "Add to group" }).click();
+  await admin.getByRole("button", { name: /^Add( \d+)? to group$/ }).click();
   await expect(admin.getByRole("status")).toContainText("Added 1 member");
 
   const carol = admin.getByRole("row", { name: /Carol Member/ });
