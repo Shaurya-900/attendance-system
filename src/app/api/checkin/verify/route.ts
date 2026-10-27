@@ -49,7 +49,14 @@ export async function POST(req: NextRequest) {
     await repo.addAudit({ actorId: user.id, action: "proxy.duplicate_device", target: meeting.id, details: { deviceId } });
     return NextResponse.json({ error: "This phone already checked someone else in to this meeting. Each phone checks in one member, so use your own registered phone.", next: "me" }, { status: 409 });
   }
-  if (result === "ok") await repo.updatePasskeyCounter(passkey.credentialId, newCounter);
+  if (result === "ok") {
+    await repo.updatePasskeyCounter(passkey.credentialId, newCounter);
+    // Scanning a live group code brings you into the group (advisors have no attendance duties, so they just check in).
+    if (meeting.groupId && user.role !== "advisor" && !(await repo.listMembershipsForUser(user.id)).some((m) => m.groupId === meeting.groupId)) {
+      await repo.setGroupMember(meeting.groupId, user.id, "member");
+      await repo.addAudit({ actorId: user.id, action: "group.auto_join", target: meeting.groupId, details: { meetingId: meeting.id } });
+    }
+  }
   const res = NextResponse.json(result === "duplicate_user" ? { alreadyCheckedIn: true } : { ok: true, status, meetingTitle: meeting.title, clock: clock(checkedInAt), date: stampDate(checkedInAt) });
   setDeviceCookie(res, deviceId);
   clearChallengeCookie(res);
