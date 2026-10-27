@@ -16,6 +16,7 @@ export default async function OnboardPage({ searchParams }: { searchParams: Prom
           <li>Every check-in needs this phone and your unlock, so sharing your password won&apos;t let anyone check in for you.</li>
           <li>One phone per member. A phone already registered to someone else will be refused.</li>
           <li>Changed phones? Ask an admin to reset your registration.</li>
+          <li>Check in from <strong>this browser</strong>: open this site and tap Scan QR to check in. Your camera app may open a different browser that can&apos;t see the passkey.</li>
         </ul>
       </div>
       {next.startsWith("/checkin") && <p className="alert alert-ok">After this, scan the code on the screen once more to check in. It changes every 10 seconds.</p>}
