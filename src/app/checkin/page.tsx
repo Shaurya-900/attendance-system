@@ -1,7 +1,9 @@
+import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { fmt } from "@/components/ui";
 import { requireUser } from "@/lib/auth";
+import { DEVICE_COOKIE } from "@/lib/device";
 import { clock, stampDate } from "@/lib/format";
 import { verifyToken } from "@/lib/qr-token";
 import { getRepo } from "@/lib/repo";
@@ -43,9 +45,12 @@ export default async function CheckInPage({ searchParams }: { searchParams: Prom
   const here = `/checkin?m=${encodeURIComponent(m ?? "")}&t=${encodeURIComponent(t ?? "")}`;
   const user = await requireUser(here);
   const repo = getRepo();
-  const [passkey, meeting, existing] = await Promise.all([
-    repo.getPasskeyByUser(user.id), m ? repo.getMeeting(m) : null, m ? repo.getAttendance(m, user.id) : null,
+  const [passkey, meeting, existing, jar] = await Promise.all([
+    repo.getPasskeyByUser(user.id), m ? repo.getMeeting(m) : null, m ? repo.getAttendance(m, user.id) : null, cookies(),
   ]);
+  // Registering sets the device cookie in that browser; without it, this is most likely a different browser
+  // (a camera app opens the default one), which can't see the passkey.
+  const otherBrowser = !!passkey && !jar.get(DEVICE_COOKIE);
 
   // A valid scan: either the QR token itself (checked as soon as the page opens, so nobody confirms their
   // fingerprint only to be told it expired), or a ticket carried back from registering their phone.
@@ -125,6 +130,12 @@ export default async function CheckInPage({ searchParams }: { searchParams: Prom
       {late && <p className="alert">You&apos;re past the start, so this counts as late. Late doesn&apos;t add a strike.</p>}
       {existing && <p className="alert">You&apos;re down as {existing.status} for this one. Checking in now replaces that.</p>}
       {joinsGroup && <p className="alert">You&apos;re not in {group?.name ?? "this group"} yet. Checking in adds you to it.</p>}
+      {otherBrowser && (
+        <p className="alert alert-warn">
+          This looks like a different browser from the one you registered in. If you see &quot;No available sign-in&quot;, open
+          E-Cell Attendance in that browser and tap <strong>Scan QR to check in</strong>.
+        </p>
+      )}
 
       <RegisterLine
         name={user.name} mark={late ? "late" : "not in yet"} status={late ? "late" : "present"}
@@ -139,6 +150,7 @@ export default async function CheckInPage({ searchParams }: { searchParams: Prom
           <summary>No fingerprint prompt, or not you?</summary>
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li>Use the phone you registered, with its screen lock turned on.</li>
+            <li>&quot;No available sign-in&quot;? Your camera opened a different browser. Open this site in the browser you registered in and tap Scan QR to check in.</li>
             <li>Changed phones? Ask an admin to reset your registration, then register the new one.</li>
             <li>Still stuck? Tell your lead before the meeting ends so they can mark you in.</li>
             <li>
