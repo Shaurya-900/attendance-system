@@ -3,6 +3,7 @@ import { canManageGroup, requireStaff } from "@/lib/auth";
 import { isGroupActive } from "@/lib/meetings";
 import { getRepo } from "@/lib/repo";
 import { GROUP_KIND_LABEL as kindLabel } from "@/lib/types";
+import { ImportGroupsForm } from "./import-groups-form";
 import { NewGroupForm } from "./new-group-form";
 
 
@@ -35,6 +36,7 @@ export default async function GroupsPage() {
         Leads can run their group&apos;s meetings and manage its members.
       </p>
       {staff.isAdmin && <NewGroupForm />}
+      {staff.isAdmin && <ImportGroupsForm />}
       <section className="card">
         <h2 className="mb-1 font-semibold">Active</h2>
         {active.length ? list(active) : <p className="muted text-sm">No groups yet.</p>}

@@ -12,6 +12,7 @@ import { canManageGroup, requireAdmin, requireStaff } from "@/lib/auth";
 import { applyApprovedExcuse, closeMeeting, expectedMembers } from "@/lib/meetings";
 import { env } from "@/lib/env";
 import { applyMemberChanges, checkMemberChanges, detailsAfter } from "@/lib/members";
+import { matchGroupSheet, parseGroupSheet } from "@/lib/group-sheet";
 import { getRepo } from "@/lib/repo";
 import { parseRoster } from "@/lib/roster";
 import type { AttendanceStatus, Meeting, MemberChanges } from "@/lib/types";
@@ -243,6 +244,52 @@ export async function createGroup(_prev: FormState, formData: FormData): Promise
   await repo.addAudit({ actorId: admin.id, action: "group.create", target: group.id, details: { name: group.name, kind: group.kind } });
   refreshAll();
   redirect(`/admin/groups/${group.id}`);
+}
+
+/** Make every team in a pasted sheet (one person per line) and fill them in one go; teams that already exist are topped up. */
+export async function importGroups(_prev: FormState, formData: FormData): Promise<FormState> {
+  const admin = await requireAdmin();
+  const repo = getRepo();
+  const { rows, rejected } = parseGroupSheet(str(formData, "sheet"));
+  const [groups, profiles, roster] = await Promise.all([repo.listGroups(), repo.listProfiles(), repo.listRoster()]);
+  const userByEmail = new Map(profiles.map((p) => [p.email, p.id]));
+  const people = roster.map((r) => ({ email: r.email, rollNo: r.rollNo, userId: userByEmail.get(r.email) ?? null }));
+  // Someone signed in but removed from the roster can still be placed.
+  for (const p of profiles) if (!people.some((x) => x.email === p.email)) people.push({ email: p.email, rollNo: p.rollNo, userId: p.id });
+  const { matched, unknown } = matchGroupSheet(rows, people);
+  if (matched.length === 0) {
+    return { error: [rejected.length && `Couldn't read:\n${rejected.join("\n")}`, unknown.length && `Not on the members list (import them on the Members page first):\n${unknown.join("\n")}`]
+      .filter(Boolean).join("\n\n") || "Paste at least one line: team name, then the person's SNU mail ID or roll number.", values: { sheet: str(formData, "sheet") } };
+  }
+
+  const groupIds = new Map(groups.filter((g) => !g.archived).map((g) => [g.name.toLowerCase(), g.id]));
+  let created = 0;
+  for (const { group } of matched) {
+    if (groupIds.has(group.toLowerCase())) continue;
+    groupIds.set(group.toLowerCase(), (await repo.createGroup({ name: group, kind: "team", endsOn: null })).id);
+    created++;
+  }
+  const existing = new Set((await repo.listGroupMembers()).map((m) => `${m.groupId}:${m.userId}`));
+  const reserved = new Set((await repo.listRosterGroups()).map((r) => `${r.groupId}:${r.email}`));
+  let added = 0, waiting = 0;
+  for (const { group, person, lead } of matched) {
+    const groupId = groupIds.get(group.toLowerCase())!;
+    if (person.userId) {
+      if (existing.has(`${groupId}:${person.userId}`) && !lead) continue;
+      await repo.setGroupMember(groupId, person.userId, lead ? "lead" : "member");
+      if (!existing.has(`${groupId}:${person.userId}`)) added++;
+      existing.add(`${groupId}:${person.userId}`);
+    } else if (!reserved.has(`${groupId}:${person.email}`)) {
+      await repo.addRosterGroup(person.email, groupId);
+      reserved.add(`${groupId}:${person.email}`);
+      waiting++;
+    }
+  }
+  await repo.addAudit({ actorId: admin.id, action: "group.import", target: null, details: { created, added, waiting } });
+  refreshAll();
+  const msg = `Made ${created} new team(s) and added ${added} member(s)${waiting ? `; ${waiting} more will join when they first sign in` : ""}.`;
+  const problems = [rejected.length && `Couldn't read:\n${rejected.join("\n")}`, unknown.length && `Not on the members list (import them on the Members page first):\n${unknown.join("\n")}`].filter(Boolean).join("\n\n");
+  return problems ? { error: `${msg}\n\n${problems}` } : { ok: msg };
 }
 
 export async function setGroupArchived(formData: FormData) {
